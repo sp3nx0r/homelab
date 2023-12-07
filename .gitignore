@@ -5,10 +5,16 @@ Thumbs.db
 kubeconfig
 .decrypted~*.yaml
 .config.env
-*.agekey
 *.pub
-*.key
 # Ansible
 .venv*
 # Taskfile
 .tasks
+# Terraform
+.terraform
+.terraform.tfstate*
+terraform.tfstate*
+# Sops
+.decrypted~*
+*.agekey
+*.key
