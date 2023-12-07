@@ -1,6 +1,6 @@
 ---
 - name: Prepare System
-  hosts: all
+  hosts: kubernetes
   become: true
   gather_facts: true
   any_errors_fatal: true
@@ -9,7 +9,7 @@
       ansible.builtin.pause:
         seconds: 5
     - name: Populate service facts
-      service_facts:
+      ansible.builtin.service_facts:
   tasks:
     - name: Locale
       block:
@@ -26,6 +26,41 @@
               nvme-cli,open-iscsi,parted,psmisc,python3,python3-apt,python3-kubernetes,python3-yaml,
               smartmontools,socat,software-properties-common,unzip,util-linux
             install_recommends: false
+        - name: Packages | Check if snap is installed
+          register: snapd_check
+          when:
+            - "'snapd' in ansible_facts.packages"
+        - name: Packages | Remove snap packages
+          ansible.builtin.command: snap remove {{ item }}
+          loop:
+            - lxd
+            - core18
+            - core20
+            - snapd
+          when:
+            - "'snapd' in ansible_facts.packages"
+            - snapd_check.failed is defined
+        - name: Packages | Remove
+          ansible.builtin.apt:
+            name: lxd,lxd-client,apport,byobu,cloud-init,cloud-guest-utils,cloud-initramfs-copymods,
+              cloud-initramfs-dyn-netconf,friendly-recovery,landscape-common,lxd-agent-loader,
+              ntfs-3g,plymouth,plymouth-theme-ubuntu-text,popularity-contest,snapd,sosreport,
+              ubuntu-advantage-tools,ufw
+            state: absent
+            autoremove: true
+        - name: Packages | Remove snap files
+          ansible.builtin.file:
+            state: absent
+            path: "{{ item }}"
+          loop:
+            - "/home/{{ ansible_user }}/.snap"
+            - "/snap"
+            - "/var/snap"
+            - "/var/lib/snapd"
+            - "/var/cache/snapd"
+            - "/usr/lib/snapd"
+            - "/etc/cloud"
+            - "/var/lib/cloud"
 
     - name: User Configuration
       block:
@@ -42,6 +77,15 @@
             mode: "0644"
             modification_time: preserve
             access_time: preserve
+        - name: User Configuration | Aliases
+          ansible.builtin.blockinfile:
+            path: /etc/profile.d/00-aliases.sh
+            create: true
+            mode: '0644'
+            block: |
+              alias k='kubectl'
+              complete -F __start_kubectl k
+              alias ..='cd ..'
 
     - name: Network Configuration
       notify: Reboot
@@ -72,15 +116,18 @@
             regexp: ManageForeignRoutes
             line: ManageForeignRoutes=no
         # https://github.com/onedr0p/flux-cluster-template/discussions/635
-        - name: Network Configuration | Remove /etc/resolv.conf
+        - name: Network Configuration | Remove immutable flag from /etc/resolv.conf
           ansible.builtin.file:
             attributes: -i
+            path: /etc/resolv.conf
+        - name: Network Configuration | Remove /etc/resolv.conf
+          ansible.builtin.file:
             path: /etc/resolv.conf
             state: absent
         - name: Network Configuration | Add custom /etc/resolv.conf
           ansible.builtin.copy:
             attributes: +i
-            mode: 644
+            mode: '0644'
             dest: /etc/resolv.conf
             content: |
               search .

@@ -1,0 +1,25 @@
+---
+- name: Proxmox Configs | Preferences | Enable Bash completion case insensitivy
+  ansible.builtin.blockinfile:
+    path: /etc/inputrc
+    insertafter: EOF
+    block: |
+      set completion-ignore-case on
+
+# https://johnscs.com/remove-proxmox51-subscription-notice/
+- name: Proxmox Configs | Preferences | Remove Proxmox nag
+  ansible.builtin.command: |
+    sed -Ezi.bak "s/(Ext.Msg.show\(\{\s+title: gettext\('No valid sub)/void\(\{ \/\/\1/g" /usr/share/javascript/proxmox-widget-toolkit/proxmoxlib.js
+  register: nag_removed
+
+- name: Proxmox Configs | Preferences | Restart PVEProxy
+  ansible.builtin.command: 'systemctl restart pveproxy.service'
+  when: nag_removed.changed
+
+- name: Proxmox Configs | Preferences | Copy docker config.json to %HOME%/.docker/config.json
+  ansible.builtin.copy:
+    src: files/docker-config.json
+    dest: /root/.docker/config.json
+    mode: '0600'
+    owner: root
+  register: systemd

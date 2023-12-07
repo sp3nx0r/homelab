@@ -1,0 +1,36 @@
+---
+- name: Proxmox Dockerize | Create default directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: root
+    mode: '0755'
+  loop:
+    - /storage/docker
+    - {apps_dir}
+    - {data_dir}
+
+- name: Proxmox Dockerize | Cadvisor
+  ansible.builtin.include_tasks: cadvisor.yml
+  tags:
+    - cadvisor
+- name: Proxmox Dockerize | Node Exporter
+  ansible.builtin.include_tasks: node-exporter.yml
+  tags:
+    - node-exporter
+- name: Proxmox Dockerize | Watchtower
+  ansible.builtin.include_tasks: watchtower.yml
+  tags:
+    - watchtower
+- name: Proxmox Dockerize | Promtail
+  ansible.builtin.include_tasks: promtail.yml
+  tags:
+    - promtail
+- name: Proxmox Dockerize | Plex
+  ansible.builtin.include_tasks: plex.yml
+  tags:
+    - plex
+- name: Proxmox Dockerize | Docker Cleanup
+  ansible.builtin.include_tasks: docker.yml
+  tags:
+    - docker

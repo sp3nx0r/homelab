@@ -1,0 +1,49 @@
+---
+- name: Proxmox Configs | Apt Sources
+  ansible.builtin.include_tasks: apt-sources.yml
+  tags:
+    - apt-sources
+- name: Proxmox Configs | Packages
+  ansible.builtin.include_tasks: packages.yml
+  tags:
+    - packages
+- name: Proxmox Configs | Filesystem
+  ansible.builtin.include_tasks: filesystem.yml
+  tags:
+    - filesystem
+# TODO: Enabling IOMMU breaks networking stack in Proxmox, need to research
+# - ansible.builtin.include_tasks: iommu-passthrough.yml
+#   tags:
+#     - iommu
+- name: Proxmox Configs | NFS Server
+  ansible.builtin.include_tasks: nfs-server.yml
+  tags:
+    - nfs-server
+- name: Proxmox Configs | Preferences
+  ansible.builtin.include_tasks: preferences.yml
+  tags:
+    - preferences
+- name: Proxmox Configs | UPS
+  ansible.builtin.include_tasks: ups.yaml
+  tags:
+    - ups
+- name: Proxmox Configs | Aliases
+  ansible.builtin.include_tasks: aliases.yml
+  tags:
+    - aliases
+- name: Proxmox Configs | Local Backup
+  ansible.builtin.include_tasks: local_backup.yml
+  tags:
+    - local_backup
+- name: Proxmox Configs | Restic Offsite Backup
+  ansible.builtin.include_tasks: restic_backup.yml
+  tags:
+    - restic
+- name: Proxmox Configs | Postfix
+  ansible.builtin.include_tasks: postfix.yml
+  tags:
+    - postfix
+- name: Proxmox Configs | QM Restart Cron
+  ansible.builtin.include_tasks: qm_restart_cron.yml
+  tags:
+    - qm_restart_cron

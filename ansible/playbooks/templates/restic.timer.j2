@@ -1,0 +1,11 @@
+[Unit]
+Description=restic {{ item.interval }} backup
+
+[Timer]
+# Run restic {{ item.interval }}
+OnCalendar={{ item.oncalendar }}
+Persistent=true
+Unit=restic@{{ item.interval }}.service
+
+[Install]
+WantedBy=timers.target

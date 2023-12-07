@@ -1,0 +1,66 @@
+---
+- name: Proxmox Configs | Local Backup | Gather package facts
+  ansible.builtin.package_facts:
+    manager: auto
+
+- name: Proxmox Configs | Local Backup | Download rsnapshot
+  ansible.builtin.get_url:
+    checksum: sha256:9c75d83eaf64823ed5dab7c2c53202f9ef249b40a6ec39210e1b85bb00b6074c
+    dest: /tmp
+    url: https://rsnapshot.org/downloads/rsnapshot_1.4.5-1_all.deb
+    mode: '0644'
+  when: "'rsnapshot' not in ansible_facts.packages"
+
+- name: Proxmox Configs | Local Backup | Install rsnapshot deb package
+  ansible.builtin.apt:
+    deb: /tmp/rsnapshot_1.4.5-1_all.deb
+    state: present
+  when: "'rsnapshot' not in ansible_facts.packages"
+
+- name: Proxmox Configs | Local Backup | Copy cryptshot bash script
+  ansible.builtin.copy:
+    src: cryptshot/cryptshot.sh
+    dest: "/usr/bin/cryptshot"
+    mode: '0755'
+
+- name: Proxmox Configs | Local Backup | Copy rsnapshot config
+  ansible.builtin.copy:
+    src: cryptshot/rsnapshot.conf
+    dest: "/etc/rsnapshot.conf"
+    mode: '0644'
+
+- name: Proxmox Configs | Local Backup | Copy external drive keyfile
+  ansible.builtin.copy:
+    content: "{{ lookup('community.sops.sops', 'cryptshot/external_drive.keyfile.sops') }}"
+    dest: "/root/external_drive.keyfile"
+    mode: '0600'
+
+- name: Proxmox Configs | Local Backup | Create cryptshot systemd template file
+  ansible.builtin.copy:
+    src: "cryptshot/cryptshot@.service"
+    dest: "/etc/systemd/system/cryptshot@.service"
+    mode: '0644'
+  register: template
+
+- name: Proxmox Configs | Local Backup | Create cryptshot systemd file
+  ansible.builtin.template:
+    src: "cryptshot.timer.j2"
+    dest: "/etc/systemd/system/cryptshot-{{ item.interval }}.timer"
+    mode: '0644'
+  loop:
+    - {interval: "daily", oncalendar: "05:30"}
+    - {interval: "weekly", oncalendar: "Monday *-*-* 04:30"}
+    - {interval: "monthly", oncalendar: "*-*-1 03:30:00"}
+  register: service
+
+- name: Proxmox Configs | Local Backup | Start and enable cryptshot timers
+  ansible.builtin.systemd:
+    name: "cryptshot-{{ item.interval }}.timer"
+    state: restarted
+    enabled: true
+    daemon_reload: true
+  when: template.changed or service.changed
+  loop:
+    - {interval: "daily"}
+    - {interval: "weekly"}
+    - {interval: "monthly"}

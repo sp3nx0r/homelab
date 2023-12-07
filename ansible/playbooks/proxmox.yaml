@@ -1,0 +1,25 @@
+---
+# https://gist.github.com/triangletodd/02f595cd4c0dc9aac5f7763ca2264185
+# https://github.com/NatiSayada/k3s-proxmox-terraform-ansible
+- name: Prepare Proxmox
+  hosts: proxmox
+  become: true
+  gather_facts: true
+  any_errors_fatal: true
+  serial: 1
+  vars:
+    apps_dir: /storage/docker/apps
+    data_dir: /storage/docker/data
+    backup_cronjob_intervals:
+      - "daily"
+      - "weekly"
+      - "monthly"
+  pre_tasks:
+    - name: Pausing for 5 seconds...
+      ansible.builtin.pause:
+        seconds: 5
+  tasks:
+    - name: Proxmox Configs
+      ansible.builtin.include_tasks: tasks/proxmox/config/main.yml
+    - name: Proxmox Dockerize
+      ansible.builtin.include_tasks: tasks/proxmox/dockerize/main.yml

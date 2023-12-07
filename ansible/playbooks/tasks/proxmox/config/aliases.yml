@@ -1,0 +1,9 @@
+---
+- name: Proxmox Configs | Add aliases
+  ansible.builtin.blockinfile:
+    path: /etc/profile.d/00-aliases.sh
+    create: true
+    mode: '0644'
+    block: |
+      alias ..='cd ..'
+      alias update='apt-get update && apt-get upgrade -y && apt-get dist-upgrade -y && apt-get autoclean && apt-get autoremove -y'

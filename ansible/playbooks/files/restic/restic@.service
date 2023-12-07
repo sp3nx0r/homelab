@@ -1,0 +1,8 @@
+[Unit]
+Description=restic (%I) backup
+
+[Service]
+Type=oneshot
+Nice=19
+IOSchedulingClass=idle
+ExecStart=/etc/restic/b2_backup.sh

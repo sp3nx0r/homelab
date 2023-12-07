@@ -1,0 +1,55 @@
+---
+- name: Proxmox Configs | Restic Offsite Backup | Gather package facts
+  ansible.builtin.package_facts:
+    manager: auto
+
+- name: Proxmox Configs | Restic Offsite Backup | Install rsnapshot deb package
+  ansible.builtin.apt:
+    name: restic
+    state: present
+  when: "'restic' not in ansible_facts.packages"
+
+- name: Proxmox Configs | Restic Offsite Backup | Create /etc/restic if it doesn't exist
+  ansible.builtin.file:
+    path: /etc/restic
+    state: directory
+    mode: '0755'
+    owner: root
+
+- name: Proxmox Configs | Restic Offsite Backup | Copy env vars file for BackBlaze on Restic
+  ansible.builtin.copy:
+    dest: "/etc/restic/b2.env"
+    content: "{{ lookup('community.sops.sops', 'restic/b2.env.sops') }}"
+    mode: '0600'
+
+- name: Proxmox Configs | Restic Offsite Backup | Copy backup script
+  ansible.builtin.copy:
+    dest: "/etc/restic/b2_backup.sh"
+    src: "restic/b2_backup.sh"
+    mode: '0700'
+
+- name: Proxmox Configs | Restic Offsite Backup | Create restic systemd template file
+  ansible.builtin.copy:
+    src: "restic/restic@.service"
+    dest: "/etc/systemd/system/restic@.service"
+    mode: '0644'
+  register: template
+
+- name: Proxmox Configs | Restic Offsite Backup | Create restic systemd file
+  ansible.builtin.template:
+    src: "restic.timer.j2"
+    dest: "/etc/systemd/system/restic-{{ item.interval }}.timer"
+    mode: '0644'
+  loop:
+    - { interval: "weekly", oncalendar: "Sunday *-*-* 20:30" }
+  register: service
+
+- name: Proxmox Configs | Restic Offsite Backup | Start and enable restic timers
+  ansible.builtin.systemd:
+    name: "restic-{{ item.interval }}.timer"
+    state: restarted
+    enabled: true
+    daemon_reload: true
+  when: template.changed or service.changed
+  loop:
+    - { interval: "weekly" }
