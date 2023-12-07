@@ -10,6 +10,7 @@ provisioner: nfs.csi.k8s.io
 parameters:
   server: 192.168.5.10
   share: /storage
+  subDir: ${pvc.metadata.namespace}-${pvc.metadata.name}
 reclaimPolicy: Delete
 volumeBindingMode: Immediate
 # Note: The first two options are strictly for NFSv4.2
@@ -26,6 +27,7 @@ provisioner: nfs.csi.k8s.io
 parameters:
   server: 192.168.5.10
   share: /storage-fast
+  subDir: ${pvc.metadata.namespace}-${pvc.metadata.name}
 reclaimPolicy: Delete
 volumeBindingMode: Immediate
 # Note: The first two options are strictly for NFSv4.2
