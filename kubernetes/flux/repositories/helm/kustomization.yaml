@@ -24,3 +24,4 @@ resources:
   - ./intel.yaml
   - ./harbor.yaml
   - ./descheduler.yaml
+  - ./node-feature-discovery.yaml

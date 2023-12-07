@@ -11,3 +11,4 @@ resources:
   - ./snapshot-controller/ks.yaml
   - ./descheduler/ks.yaml
   - ./intel-device-plugin/ks.yaml
+  - ./node-feature-discovery/ks.yaml
