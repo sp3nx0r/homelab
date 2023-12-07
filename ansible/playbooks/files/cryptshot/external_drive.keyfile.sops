@@ -1,20 +1,20 @@
 {
-    "data": "ENC[AES256_GCM,data:hUqa7U3aXWdZUtytILK6DekF1Wz1wbE8dwHAAcE9ZNE=,iv:k1zM7ks2LziGFUiv70ZGhg0MAi5lIa9/gyLFa6/kDp8=,tag:JXCTwUFLIDAAPKiJxN9TJw==,type:str]",
-    "sops": {
-        "kms": null,
-        "gcp_kms": null,
-        "azure_kv": null,
-        "hc_vault": null,
-        "age": [
-            {
-                "recipient": "age1uks2xtgfcjk5cfzv40jm3ar9yl3jzdpea0jcta9zsa00td0r8shqx07umn",
-                "enc": "-----BEGIN AGE ENCRYPTED FILE-----\nYWdlLWVuY3J5cHRpb24ub3JnL3YxCi0+IFgyNTUxOSB3RXpFOUNneitsR0hYVnYw\nekJobjJTcmRvWlJYTWIvY1Q2V2JSRHh6eUZRCjg5ZiszWWI4cnAyRnhlQlRQaVR2\nMXFuY3NZWDVIbkF1dDBKL28vUTFSYWMKLS0tIDRObjhJc1dmU3B4YnFuM0hTMjd6\nRjkzbE16cXJOcmtkYUF2SGlFTW5wWDQKhHU0r50HHKxRHs1iIeoRcQltZ3fi+Imz\nM+CN3wIoVss348ptuLKV4zfqM2usB4PHzxhUCIqx2EhDuuArr9YbtQ==\n-----END AGE ENCRYPTED FILE-----\n"
-            }
-        ],
-        "lastmodified": "2022-10-04T00:47:22Z",
-        "mac": "ENC[AES256_GCM,data:IHWAxb2C0PZbh9iqTQBciFdadcJlgErPApgDQpku34s+T4fslN4Y2cJFE2/VW4oamTR+BriFjJk8373zlNeClZzkoaw8IRIPseysviE0TOib2wd5LvtGoqg5gFXVhBcMa56ir9BHG06CWp9HN9NutLoRJpgYi4hhFNJIkDXpFQA=,iv:hUSg79uinNAb+sLD1GJrwHqW8yj/+Q+jpwn7aP1qSwM=,tag:emHhIoNYPyyE7DlG4jjpFA==,type:str]",
-        "pgp": null,
-        "unencrypted_regex": "^export",
-        "version": "3.7.3"
-    }
+	"data": "ENC[AES256_GCM,data:3srXXyna2eOWjklpSvHRXqXDMwj88jacSAuL18JyABc=,iv:KSYghQb5L19q37sR3E6rEXHdkbb7CoGSvOmcuM8IPKE=,tag:qHDI0aUzq2cdGQpgFp6LpQ==,type:str]",
+	"sops": {
+		"kms": null,
+		"gcp_kms": null,
+		"azure_kv": null,
+		"hc_vault": null,
+		"age": [
+			{
+				"recipient": "age1meu65v2nuw6ntzn8fghgc59mmkcm2uhynj4ydchrpdp6audq2y6q85kadn",
+				"enc": "-----BEGIN AGE ENCRYPTED FILE-----\nYWdlLWVuY3J5cHRpb24ub3JnL3YxCi0+IFgyNTUxOSBoR3ZaY2x3MFBSQUZUWUFH\nVVpRUm4xK0dOdy9PUlR6L25lZzBBalMyd0dzCnk5ZDZ0Y2FkK2J3UzJ4S1Z6QU9T\nOEJYV1UyVHZ5ZjA3cFkrVGJrb0FabncKLS0tIDZlY0YxeEVCdzd1aVRxY2JkU290\nLyt0ZEdxdnRWNGNUUlIrSDl6LzZHV1EK7dFcyQcNljcSpty5XYYVkFaivqGwMBvX\nzrJtd7Ez1gR99oNH3X5t38XSwAHEHrVkcAwtYpoZbSjEUlKg2xUupg==\n-----END AGE ENCRYPTED FILE-----\n"
+			}
+		],
+		"lastmodified": "2023-12-07T16:17:01Z",
+		"mac": "ENC[AES256_GCM,data:oZfyKSPGGLck+DYiPjN/enB0TSpKNdSKXgsqQZXzIZZNaY2AKe41nqOf8HuThaDwduIf7bp+366TRKLAYwjJpdNRmpClG2iFEuKX1zvVAtFgPtJJC/erzvM4xVzqH0J2YUSgg3Oko0FLFuBgN9kv5w5cxpIW9K5nY4EL2o7ZUkw=,iv:1HhB8bgknk6cMRSOaXmynkSJQgRy4LjFZwnLH8GfXXE=,tag:SfpcqC2BFu8v+vmUiJsPwg==,type:str]",
+		"pgp": null,
+		"unencrypted_suffix": "_unencrypted",
+		"version": "3.8.1"
+	}
 }
