@@ -1,0 +1,88 @@
+---
+apiVersion: helm.toolkit.fluxcd.io/v2beta1
+kind: HelmRelease
+metadata:
+  name: vaultwarden
+spec:
+  interval: 30m
+  chart:
+    spec:
+      chart: app-template
+      version: 2.3.0
+      sourceRef:
+        kind: HelmRepository
+        name: bjw-s
+        namespace: flux-system
+  maxHistory: 2
+  install:
+    remediation:
+      retries: 3
+  upgrade:
+    cleanupOnFail: true
+    remediation:
+      retries: 3
+  uninstall:
+    keepHistory: false
+  values:
+    image:
+      repository: docker.io/vaultwarden/server
+      tag: 1.30.1
+    env:
+      TZ: America/Chicago
+      DATA_FOLDER: config
+      WEBSOCKET_ENABLED: 'true'
+      # SIGNUPS_ALLOWED: "false"
+      SHOW_PASSWORD_HINT: 'false'
+      DOMAIN: https://vw.${SECRET_DOMAIN}
+      # ADMIN_TOKEN:
+      #   valueFrom:
+      #     secretKeyRef:
+      #       name: vaultwarden-secrets
+      #       key: adminToken
+    service:
+      main:
+        ports:
+          http:
+            port: 80
+          websocket:
+            enabled: true
+            port: 3012
+    ingress:
+      main:
+        enabled: true
+        ingressClassName: external
+        annotations:
+          external-dns.alpha.kubernetes.io/target: "external.${SECRET_DOMAIN}"
+        hosts:
+          - host: &host vw.${SECRET_DOMAIN}
+            paths:
+              - path: /
+                pathType: Prefix
+                service:
+                  port: 80
+              - path: /notifications/hub/negotiate
+                pathType: Prefix
+                service:
+                  port: 80
+              - path: /notifications/hub
+                pathType: Prefix
+                service:
+                  port: 3012
+        tls:
+          - hosts:
+              - *host
+    persistence:
+      config:
+        enabled: true
+        existingClaim: vaultwarden-config
+    # TODO: yeah it's not using postgres, should eventually migrate
+    # postgresql:
+    #   enabled: true
+    #   postgresqlUsername: vaultwarden
+    #   postgresqlPassword: ${SECRET_VAULTWARDEN_DB_PASSWORD}
+    #   postgresqlDatabase: vaultwarden
+    #   persistence:
+    #     enabled: true
+    #     existingClaim: vaultwarden-postgresql
+    securityContext:
+      allowPrivilegeEscalation: false
