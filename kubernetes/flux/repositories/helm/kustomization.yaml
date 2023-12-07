@@ -20,3 +20,7 @@ resources:
   - ./prometheus-community.yaml
   - ./stakater.yaml
   - ./weave-gitops.yaml
+  - ./minio.yaml
+  - ./intel.yaml
+  - ./harbor.yaml
+  - ./descheduler.yaml
