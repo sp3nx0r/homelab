@@ -35,16 +35,16 @@ spec:
               repository: quay.io/minio/minio
               tag: RELEASE.2023-12-06T09-09-22Z
             env:
-              MINIO_API_CORS_ALLOW_ORIGIN: https://minio.{{SECRET_DOMAIN}},https://s3.{{SECRET_DOMAIN}}
-              MINIO_BROWSER_REDIRECT_URL: https://minio.{{SECRET_DOMAIN}}
+              MINIO_API_CORS_ALLOW_ORIGIN: https://minio.${SECRET_DOMAIN},https://s3.${SECRET_DOMAIN}
+              MINIO_BROWSER_REDIRECT_URL: https://minio.${SECRET_DOMAIN}
               MINIO_PROMETHEUS_JOB_ID: minio
-              MINIO_PROMETHEUS_URL: https://prometheus.{{SECRET_DOMAIN}}
+              MINIO_PROMETHEUS_URL: https://prometheus.${SECRET_DOMAIN}
               MINIO_PROMETHEUS_AUTH_TYPE: public
-              MINIO_SERVER_URL: https://s3.{{SECRET_DOMAIN}}
+              MINIO_SERVER_URL: https://s3.${SECRET_DOMAIN}
               MINIO_UPDATE: "off"
-            envFrom:
-              - secretRef:
-                  name: minio-secret
+            # envFrom:
+            #   - secretRef:
+            #       name: minio-secret
             args:
               - server
               - /data
@@ -92,13 +92,13 @@ spec:
         enabled: true
         className: internal
         hosts:
-          - host: &host "{{ .Release.Name }}.{{SECRET_DOMAIN}}"
+          - host: &host "{{ .Release.Name }}.${SECRET_DOMAIN}"
             paths:
               - path: /
                 service:
                   name: main
                   port: http
-          - host: &s3Host s3.{{SECRET_DOMAIN}}
+          - host: &s3Host s3.${SECRET_DOMAIN}
             paths:
               - path: /
                 service:

@@ -10,9 +10,3 @@
       # Plex media storage - general availability
       /storage/plex-data *(rw,sync,no_subtree_check,all_squash,anonuid=1001,anongid=1001)
   register: nfs_server_config
-
-# TODO: Clean this up
-# - name: Proxmox Configs | NFS Server | Mount fast storage SSD
-#   mkdir /storage-fast
-#   mount -U 81fef8f6-d48a-487a-b92f-10c01447fb2e /storage-fast
-#   echo "UUID=81fef8f6-d48a-487a-b92f-10c01447fb2e /storage-fast ext4 defaults 0 0" >> /etc/fstab
