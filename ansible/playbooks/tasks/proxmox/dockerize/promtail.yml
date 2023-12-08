@@ -34,4 +34,5 @@
     state: restarted
     enabled: true
     daemon_reload: true
-  when: compose.changed or config.changed or systemd.changed
+    started: true
+  when: compose.changed or config.changed or systemd.changed or 'promtail' not in running_containers.stdout

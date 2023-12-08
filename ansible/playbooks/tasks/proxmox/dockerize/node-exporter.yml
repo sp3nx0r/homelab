@@ -26,4 +26,4 @@
     state: restarted
     enabled: true
     daemon_reload: true
-  when: compose.changed or systemd.changed
+  when: compose.changed or systemd.changed or 'node-exporter' not in running_containers.stdout
