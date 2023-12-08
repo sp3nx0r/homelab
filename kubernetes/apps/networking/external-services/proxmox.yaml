@@ -17,6 +17,8 @@ kind: Ingress
 metadata:
   name: proxmox
   namespace: networking
+  annotations:
+    nginx.ingress.kubernetes.io/backend-protocol: "HTTPS"
 spec:
   ingressClassName: internal
   tls:

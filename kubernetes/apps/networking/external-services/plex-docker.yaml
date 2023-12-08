@@ -18,7 +18,8 @@ metadata:
   name: plex-docker
   namespace: networking
   annotations:
-    external-dns.alpha.kubernetes.io/target: ipv4.${SECRET_DOMAIN}
+    external-dns.alpha.kubernetes.io/target: external.${SECRET_DOMAIN}
+    nginx.ingress.kubernetes.io/backend-protocol: "HTTPS"
 spec:
   ingressClassName: external
   tls:

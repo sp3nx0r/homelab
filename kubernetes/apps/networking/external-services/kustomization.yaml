@@ -6,4 +6,4 @@ namespace: networking
 resources:
   - ./plex-docker.yaml
   - ./proxmox.yaml
-  - ./unifi.yaml
+  - ./pihole.yaml
