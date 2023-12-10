@@ -1,0 +1,98 @@
+---
+- name: Proxmox Configs | Node Exporter Service
+  block:
+    - name: Proxmox Configs | Node Exporter Service | Download tarball
+      ansible.builtin.get_url:
+        url: https://github.com/prometheus/node_exporter/releases/download/v{{ node_exporter_version }}/node_exporter-{{ node_exporter_version }}.linux-amd64.tar.gz
+        dest: /tmp
+      vars:
+
+    - name: Proxmox Configs | Node Exporter Service | Unarchive
+      ansible.builtin.unarchive:
+        remote_src: true
+        src: /tmp/node_exporter-{{ node_exporter_version }}.linux-amd64.tar.gz
+        dest: /tmp
+
+    - name: Proxmox Configs | Node Exporter Service | Move to /usr/local/bin
+      ansible.builtin.copy:
+        src: /tmp/node_exporter-{{ node_exporter_version }}.linux-amd64/node_exporter
+        dest: /usr/local/bin/node_exporter
+        remote_src: true
+        owner: root
+        group: root
+        mode: 0755
+
+    - name: Proxmox Configs | Node Exporter Service | Install unit file to systemd
+      ansible.builtin.copy:
+        dest: /etc/systemd/system/node-exporter.service
+        owner: root
+        group: root
+        mode: 0644
+        content: |
+          # Ansible managed
+          [Unit]
+          Description=Node Exporter
+          After=network.target
+          [Service]
+          Type=simple
+          User=nobody
+          Group=nogroup
+          ExecStart=/usr/local/bin/node_exporter
+          SyslogIdentifier=node_exporter
+          Restart=always
+          [Install]
+          WantedBy=multi-user.target
+
+    - name: Proxmox Configs | Node Exporter Service | Configure systemd to use service
+      ansible.builtin.systemd:
+        daemon_reload: true
+        enabled: true
+        state: started
+        name: node-exporter.service
+  vars:
+    node_exporter_version: 1.7.0
+
+- name: Proxmox Configs | cAdvisor
+  block:
+    - name: Proxmox Configs | cAdvisor | Download binary
+      ansible.builtin.get_url:
+        url: https://github.com/google/cadvisor/releases/download/v{{ cadvisor_version }}/cadvisor-v{{ cadvisor_version }}-linux-amd64
+        dest: /tmp
+      vars:
+
+    - name: Proxmox Configs | cAdvisor | Move to /usr/local/bin
+      ansible.builtin.copy:
+        src: /tmp/cadvisor-v{{ cadvisor_version }}-linux-amd64
+        dest: /usr/local/bin/cadvisor
+        remote_src: true
+        owner: root
+        group: root
+        mode: 0755
+
+    - name: Proxmox Configs | cAdvisor | Install unit file to systemd
+      ansible.builtin.copy:
+        dest: "/etc/systemd/system/cadvisor.service"
+        mode: 0644
+        content: |
+          # Ansible managed
+          [Unit]
+          Description=cAdvisor Exporter
+          After=network.target
+          [Service]
+          Type=simple
+          User=nobody
+          Group=nogroup
+          ExecStart=/usr/local/bin/cadvisor
+          SyslogIdentifier=cadvisor
+          Restart=always
+          [Install]
+          WantedBy=multi-user.target
+
+    - name: Proxmox Configs | cAdvisor | Configure systemd to use service
+      ansible.builtin.systemd:
+        daemon_reload: true
+        enabled: true
+        state: started
+        name: cadvisor.service
+  vars:
+    cadvisor_version: 0.47.2

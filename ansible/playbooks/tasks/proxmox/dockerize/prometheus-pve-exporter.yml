@@ -1,0 +1,35 @@
+---
+- name: Proxmox Dockerize | PVE Exporter | Create prometheus-pve-exporter directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+  loop:
+    - "{{ apps_dir }}/prometheus-pve-exporter"
+
+- name: Proxmox Dockerize | PVE Exporter | Copy config file to /etc/prometheus/pve.yml
+  ansible.builtin.copy:
+    dest: "{{ apps_dir }}/prometheus-pve-exporter/pve.yml"
+    content: "{{ lookup('community.sops.sops', 'prometheus-pve-exporter.yml.sops') }}"
+    mode: '0600'
+
+- name: Proxmox Dockerize | PVE Exporter | Copy prometheus-pve-exporter docker compose file
+  ansible.builtin.template:
+    src: prometheus-pve-exporter/docker-compose.yml.j2
+    dest: "{{ apps_dir }}/prometheus-pve-exporter/docker-compose.yml"
+    mode: 0755
+  register: compose
+
+- name: Proxmox Dockerize | PVE Exporter | Create prometheus-pve-exporter systemd file
+  ansible.builtin.template:
+    src: "docker-compose@.service.j2"
+    dest: "/etc/systemd/system/docker-compose@prometheus-pve-exporter.service"
+    mode: 0644
+  register: systemd
+
+- name: Proxmox Dockerize | PVE Exporter | Start and enable prometheus-pve-exporter
+  ansible.builtin.systemd:
+    name: "docker-compose@prometheus-pve-exporter.service"
+    state: restarted
+    enabled: true
+    daemon_reload: true
+  when: compose.changed or systemd.changed or 'prometheus-pve-exporter' not in running_containers.stdout

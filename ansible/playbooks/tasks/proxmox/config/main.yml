@@ -47,3 +47,7 @@
   ansible.builtin.include_tasks: qm_restart_cron.yml
   tags:
     - qm_restart_cron
+- name: Proxmox Configs | Node Exporter Service
+  ansible.builtin.include_tasks: node-exporter.yml
+  tags:
+    - node-exporter

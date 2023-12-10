@@ -7,8 +7,8 @@
     mode: '0755'
   loop:
     - /storage/docker
-    - {apps_dir}
-    - {data_dir}
+    - "{{ apps_dir }}"
+    - "{{ data_dir }}"
 
 - name: Proxmox Dockerize | Register running containers
   ansible.builtin.shell: docker container ls -a
@@ -18,18 +18,10 @@
   check_mode: false
   ignore_errors: true
 
-- name: Proxmox Dockerize | Cadvisor
-  ansible.builtin.include_tasks: cadvisor.yml
+- name: Proxmox Dockerize | Prometheus PVE Exporter
+  ansible.builtin.include_tasks: prometheus-pve-exporter.yml
   tags:
-    - cadvisor
-- name: Proxmox Dockerize | Node Exporter
-  ansible.builtin.include_tasks: node-exporter.yml
-  tags:
-    - node-exporter
-- name: Proxmox Dockerize | Watchtower
-  ansible.builtin.include_tasks: watchtower.yml
-  tags:
-    - watchtower
+    - prometheus-pve-exporter
 - name: Proxmox Dockerize | Promtail
   ansible.builtin.include_tasks: promtail.yml
   tags:
