@@ -1,19 +1,19 @@
 ---
-- name: Proxmox Configs | Node Exporter Service
+- name: Proxmox Configs | Node Exporter
   block:
-    - name: Proxmox Configs | Node Exporter Service | Download tarball
+    - name: Proxmox Configs | Node Exporter | Download tarball
       ansible.builtin.get_url:
         url: https://github.com/prometheus/node_exporter/releases/download/v{{ node_exporter_version }}/node_exporter-{{ node_exporter_version }}.linux-amd64.tar.gz
         dest: /tmp
       vars:
 
-    - name: Proxmox Configs | Node Exporter Service | Unarchive
+    - name: Proxmox Configs | Node Exporter | Unarchive
       ansible.builtin.unarchive:
         remote_src: true
         src: /tmp/node_exporter-{{ node_exporter_version }}.linux-amd64.tar.gz
         dest: /tmp
 
-    - name: Proxmox Configs | Node Exporter Service | Move to /usr/local/bin
+    - name: Proxmox Configs | Node Exporter | Move to /usr/local/bin
       ansible.builtin.copy:
         src: /tmp/node_exporter-{{ node_exporter_version }}.linux-amd64/node_exporter
         dest: /usr/local/bin/node_exporter
@@ -22,7 +22,7 @@
         group: root
         mode: 0755
 
-    - name: Proxmox Configs | Node Exporter Service | Install unit file to systemd
+    - name: Proxmox Configs | Node Exporter | Install unit file to systemd
       ansible.builtin.copy:
         dest: /etc/systemd/system/node-exporter.service
         owner: root
@@ -43,7 +43,7 @@
           [Install]
           WantedBy=multi-user.target
 
-    - name: Proxmox Configs | Node Exporter Service | Configure systemd to use service
+    - name: Proxmox Configs | Node Exporter | Configure systemd to use service
       ansible.builtin.systemd:
         daemon_reload: true
         enabled: true
@@ -140,3 +140,53 @@
         name: pve-exporter.service
   vars:
     pve_exporter_version: 3.0.2
+
+- name: Proxmox Configs | Smartctl Exporter
+  block:
+    - name: Proxmox Configs | Smartctl Exporter | Download binary
+      ansible.builtin.get_url:
+        url: https://github.com/prometheus-community/smartctl_exporter/releases/download/v{{ smartctl_exporter_version }}/smartctl_exporter-{{ smartctl_exporter_version }}.linux-amd64.tar.gz
+        dest: /tmp
+
+    - name: Proxmox Configs | Smartctl Exporter | Unarchive
+      ansible.builtin.unarchive:
+        remote_src: true
+        src: /tmp/smartctl_exporter-{{ smartctl_exporter_version }}.linux-amd64.tar.gz
+        dest: /tmp
+
+    - name: Proxmox Configs | Smartctl Exporter | Move to /usr/local/bin
+      ansible.builtin.copy:
+        src: /tmp/smartctl_exporter-{{ smartctl_exporter_version }}.linux-amd64/smartctl_exporter
+        dest: /usr/local/bin/smartctl_exporter
+        remote_src: true
+        owner: root
+        group: root
+        mode: 0755
+
+    # TODO: change this from nobody to proper service accounts
+    - name: Proxmox Configs | Smartctl Exporter | Install unit file to systemd
+      ansible.builtin.copy:
+        dest: "/etc/systemd/system/smartctl-exporter.service"
+        mode: 0644
+        content: |
+          # Ansible managed
+          [Unit]
+          Description=Smartctl Exporter
+          After=network.target
+          [Service]
+          Type=simple
+          User=root
+          ExecStart=/usr/local/bin/smartctl_exporter
+          SyslogIdentifier=smartctl_exporter
+          Restart=always
+          [Install]
+          WantedBy=multi-user.target
+
+    - name: Proxmox Configs | Smartctl Exporter | Configure systemd to use service
+      ansible.builtin.systemd:
+        daemon_reload: true
+        enabled: true
+        state: started
+        name: smartctl-exporter.service
+  vars:
+    smartctl_exporter_version: 0.11.0
