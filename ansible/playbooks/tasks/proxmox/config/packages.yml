@@ -28,6 +28,7 @@
       - nfs-common
       - nfs-kernel-server
       - psmisc
+      - python3-pip
       - restic
       - screen
       - smartmontools

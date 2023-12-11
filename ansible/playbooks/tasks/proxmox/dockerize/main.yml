@@ -18,10 +18,6 @@
   check_mode: false
   ignore_errors: true
 
-- name: Proxmox Dockerize | Prometheus PVE Exporter
-  ansible.builtin.include_tasks: prometheus-pve-exporter.yml
-  tags:
-    - prometheus-pve-exporter
 - name: Proxmox Dockerize | Promtail
   ansible.builtin.include_tasks: promtail.yml
   tags:
