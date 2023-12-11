@@ -4,4 +4,5 @@ kind: Kustomization
 resources:
   - ./namespace.yaml
   - ./kube-prometheus-stack/ks.yaml
+  - ./pihole-exporter/ks.yaml
   - ./unpoller/ks.yaml
