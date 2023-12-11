@@ -7,3 +7,4 @@ resources:
   - ./plex-docker.yaml
   - ./proxmox.yaml
   - ./pihole.yaml
+  - ./unifi.yaml
