@@ -125,7 +125,7 @@
           [Service]
           Type=simple
           User=nobody
-          Group=nobody
+          Group=nogroup
           ExecStart=/opt/pve-exporter/bin/pve_exporter --config.file /etc/pve-exporter.yml
           SyslogIdentifier=pve-exporter
           Restart=always
