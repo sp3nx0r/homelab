@@ -38,7 +38,6 @@ spec:
               UP_UNIFI_DEFAULT_URL: https://unifi.networking.svc.cluster.local
               UP_UNIFI_DEFAULT_VERIFY_SSL: false
               UP_UNIFI_DEFAULT_USER: unifipoller
-              UP_UNIFI_DEFAULT_PASS: 1nternalUseOnly
               UP_INFLUXDB_DISABLE: true
             envFrom:
               - secretRef:
