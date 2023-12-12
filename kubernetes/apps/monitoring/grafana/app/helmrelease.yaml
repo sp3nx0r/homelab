@@ -72,7 +72,7 @@ spec:
       auth.anonymous:
         enabled: true
         org_id: 1
-        org_role: Viewer
+        org_role: Admin
       news:
         news_feed_enabled: false
     dashboardProviders:
