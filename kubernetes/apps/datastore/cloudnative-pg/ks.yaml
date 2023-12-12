@@ -6,13 +6,11 @@ metadata:
   name: &app cloudnative-pg
   namespace: flux-system
 spec:
-  targetNamespace: database
+  targetNamespace: datastore
   commonMetadata:
     labels:
       app.kubernetes.io/name: *app
-  dependsOn:
-    - name: external-secrets-stores
-  path: ./kubernetes/main/apps/database/cloudnative-pg/app
+  path: ./kubernetes/apps/datastore/cloudnative-pg/app
   prune: true
   sourceRef:
     kind: GitRepository
@@ -29,13 +27,13 @@ metadata:
   name: &app cloudnative-pg-cluster
   namespace: flux-system
 spec:
-  targetNamespace: database
+  targetNamespace: datastore
   commonMetadata:
     labels:
       app.kubernetes.io/name: *app
   dependsOn:
     - name: cloudnative-pg
-  path: ./kubernetes/main/apps/database/cloudnative-pg/cluster
+  path: ./kubernetes/apps/datastore/cloudnative-pg/cluster
   prune: true
   sourceRef:
     kind: GitRepository
