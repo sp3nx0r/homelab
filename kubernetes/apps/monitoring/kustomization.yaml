@@ -7,3 +7,4 @@ resources:
   - ./kube-web-view/ks.yaml
   - ./pihole-exporter/ks.yaml
   - ./unpoller/ks.yaml
+  - ./thanos/ks.yaml
