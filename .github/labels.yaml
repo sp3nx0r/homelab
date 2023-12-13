@@ -20,6 +20,14 @@
   color: "0e8a16"
   description: >-
     Changes made in the terraform directory
+- name: area/docs
+  color: "0e8a16"
+  description: >-
+    Changes made in the docs directory / items
+- name: area/taskfile
+  color: "0e8a16"
+  description: >-
+    Changes made in the taskfile directory
 # Renovate
 - name: renovate/ansible
   color: "027fa0"
