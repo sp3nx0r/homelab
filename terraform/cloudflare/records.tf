@@ -53,3 +53,11 @@ resource "cloudflare_record" "sendgrid_domainkey_2" {
   type    = "CNAME"
   ttl     = 1
 }
+
+resource "cloudflare_record" "bluesky" {
+  name    = "_atproto"
+  zone_id = lookup(data.cloudflare_zones.domain.zones[0], "id")
+  value   = "did=did:plc:6quh2ha5tx62idt72tdtms3e"
+  type    = "TXT"
+  ttl     = 1
+}
