@@ -18,3 +18,5 @@ terraform.tfstate*
 .decrypted~*
 *.agekey
 *.key
+# envrc
+.envrc
