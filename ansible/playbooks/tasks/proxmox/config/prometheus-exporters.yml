@@ -47,7 +47,7 @@
       ansible.builtin.systemd:
         daemon_reload: true
         enabled: true
-        state: started
+        state: restarted
         name: node-exporter.service
   vars:
     node_exporter_version: 1.7.0
@@ -92,7 +92,7 @@
       ansible.builtin.systemd:
         daemon_reload: true
         enabled: true
-        state: started
+        state: restarted
         name: cadvisor.service
   vars:
     cadvisor_version: 0.47.2
@@ -136,7 +136,7 @@
       ansible.builtin.systemd:
         daemon_reload: true
         enabled: true
-        state: started
+        state: restarted
         name: pve-exporter.service
   vars:
     pve_exporter_version: 3.0.2
@@ -186,7 +186,56 @@
       ansible.builtin.systemd:
         daemon_reload: true
         enabled: true
-        state: started
+        state: restarted
         name: smartctl-exporter.service
   vars:
     smartctl_exporter_version: 0.11.0
+
+- name: Proxmox Configs | Systemd Exporter
+  block:
+    - name: Proxmox Configs | Systemd Exporter | Download binary
+      ansible.builtin.get_url:
+        url: https://github.com/prometheus-community/systemd_exporter/releases/download/v{{ systemd_exporter_version }}/systemd_exporter-{{ systemd_exporter_version }}.linux-amd64.tar.gz
+        dest: /tmp
+
+    - name: Proxmox Configs | Systemd Exporter | Unarchive
+      ansible.builtin.unarchive:
+        remote_src: true
+        src: /tmp/systemd_exporter-{{ systemd_exporter_version }}.linux-amd64.tar.gz
+        dest: /tmp
+
+    - name: Proxmox Configs | Systemd Exporter | Move to /usr/local/bin
+      ansible.builtin.copy:
+        src: /tmp/systemd_exporter-{{ systemd_exporter_version }}.linux-amd64/systemd_exporter
+        dest: /usr/local/bin/systemd_exporter
+        remote_src: true
+        owner: root
+        group: root
+        mode: 0755
+
+    - name: Proxmox Configs | Systemd Exporter | Install unit file to systemd
+      ansible.builtin.copy:
+        dest: "/etc/systemd/system/systemd-exporter.service"
+        mode: 0644
+        content: |
+          # Ansible managed
+          [Unit]
+          Description=Systemd Exporter
+          After=network.target
+          [Service]
+          Type=simple
+          User=root
+          ExecStart=/usr/local/bin/systemd_exporter --systemd.collector.unit-include=.*docker-compose.*|cryptshot.*|cadvisor.*|.*-exporter.* --systemd.collector.enable-restart-count
+          SyslogIdentifier=systemd_exporter
+          Restart=always
+          [Install]
+          WantedBy=multi-user.target
+
+    - name: Proxmox Configs | Systemd Exporter | Configure systemd to use service
+      ansible.builtin.systemd:
+        daemon_reload: true
+        enabled: true
+        state: restarted
+        name: systemd-exporter.service
+  vars:
+    systemd_exporter_version: 0.6.0

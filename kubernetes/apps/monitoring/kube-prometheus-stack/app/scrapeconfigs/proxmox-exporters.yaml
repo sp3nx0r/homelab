@@ -11,4 +11,5 @@ spec:
         - 192.168.5.10:8080  # cadvisor
         - 192.168.5.10:9221  # pve-exporter
         - 192.168.5.10:9633  # smartctl exporter
+        - 192.168.5.10:9558  # systemd exporter
   metricsPath: /metrics
