@@ -46,6 +46,8 @@ spec:
               - *host
       alertmanagerSpec:
         replicas: 2
+        useExistingSecret: true
+        configSecret: alertmanager-secret
         storage:
           volumeClaimTemplate:
             spec:
