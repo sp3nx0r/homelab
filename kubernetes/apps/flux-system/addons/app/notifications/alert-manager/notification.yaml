@@ -36,4 +36,5 @@ spec:
     - "error.*lookup raw\\.githubusercontent\\.com"
     - "dial.*tcp.*timeout"
     - "waiting.*socket"
+    - "TLS.*handshake.*timeout"
   suspend: false
