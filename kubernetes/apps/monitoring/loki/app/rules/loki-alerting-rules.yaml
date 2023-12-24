@@ -25,3 +25,16 @@ groups:
         annotations:
           app: "{{ $labels.app }}"
           summary: "{{ $labels.app }} is experiencing database issues"
+
+  - name: promtail
+    rules:
+      - alert: PromtailWarning
+        expr: |
+          sum by (hostname) (count_over_time({hostname="proxmox"}[$__auto] | logfmt | unit="promtail.service" | level="warn")) > 0
+        for: 2m
+        labels:
+          severity: critical
+          category: logs
+        annotations:
+          hostname: "{{ $labels.hostname }}"
+          summary: "{{ $labels.hostname }} is experiencing a Promtail warnings that need investigation"

@@ -4,7 +4,7 @@
   ansible.builtin.copy:
     src: "files/{{ item }}"
     dest: "/etc/systemd/system/{{ item }}"
-    mode: 0644
+    mode: '0644'
     remote_src: false
   loop:
     - docker-cleanup.service
