@@ -45,6 +45,10 @@ spec:
       GF_SERVER_ROOT_URL: https://grafana.securimancy.com
     envFromSecrets:
       - name: *secret
+    admin:
+      existingSecret: *secret
+      userKey: GF_ADMIN_USER
+      passwordKey: GF_ADMIN_PASSWORD
     grafana.ini:
       analytics:
         check_for_updates: false
@@ -70,9 +74,7 @@ spec:
       auth.basic:
         enabled: false
       auth.anonymous:
-        enabled: true
-        org_id: 1
-        org_role: Admin
+        enabled: false
       news:
         news_feed_enabled: false
     dashboardProviders:
