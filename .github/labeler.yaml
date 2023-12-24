@@ -1,3 +1,4 @@
+---
 # Area
 area/ansible:
   - changed-files:
