@@ -34,6 +34,7 @@ spec:
       exportDenyList: |-
         {"health_check":true}
         {"namespace":["", "cilium", "kube-system"]}
+        {"podRegex":["postgres.*"]}
       enableProcessCred: true
       enableProcessNs: true
       prometheus:
