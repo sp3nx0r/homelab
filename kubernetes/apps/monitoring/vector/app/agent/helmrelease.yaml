@@ -107,3 +107,10 @@ spec:
         globalMounts:
           - path: /host/sys
             readOnly: true
+      tetragon:
+        type: hostPath
+        hostPath: /var/run/cilium/tetragon
+        hostPathType: Directory
+        globalMounts:
+          - path: /var/run/cilium/tetragon
+            readOnly: true

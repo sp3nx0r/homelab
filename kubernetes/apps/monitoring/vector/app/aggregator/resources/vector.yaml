@@ -29,6 +29,11 @@ sources:
     address: 0.0.0.0:6020
     mode: tcp
 
+  tetragon_source:
+    type: vector
+    version: "2"
+    address: 0.0.0.0:6030
+
 #
 # Transforms
 #
@@ -130,3 +135,15 @@ sinks:
     remove_timestamp: true
     labels:
       hostname: '{{ host }}'
+
+  tetragon:
+    inputs: ["tetragon_source"]
+    type: loki
+    endpoint: http://loki-gateway.monitoring.svc.cluster.local
+    encoding: { codec: json }
+    out_of_order_action: accept
+    remove_label_fields: true
+    remove_timestamp: true
+    labels:
+      app: 'tetragon'
+      node: '{{ node_name }}'

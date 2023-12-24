@@ -73,6 +73,8 @@ spec:
             port: 6010
           unifi:
             port: 6020
+          tetragon:
+            port: 6030
             # protocol: UDP
     persistence:
       config:

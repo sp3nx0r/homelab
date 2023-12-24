@@ -46,3 +46,6 @@ spec:
         pullPolicy: Always
       podInfo:
         enabled: true
+    export:
+      # Vector will ship the logs, so don't echo to stdout
+      mode: ""

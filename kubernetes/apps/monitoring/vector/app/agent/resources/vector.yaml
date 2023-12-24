@@ -20,6 +20,11 @@ sources:
     node_annotation_fields:
       node_labels: ""
 
+  tetragon_source:
+    type: file
+    include:
+      - /var/run/cilium/tetragon/tetragon.log
+
 sinks:
   journald:
     type: vector
@@ -34,3 +39,10 @@ sinks:
     version: "2"
     address: vector-aggregator.monitoring.svc.cluster.local:6010
     inputs: ["kubernetes_source"]
+
+  tetragon:
+    type: vector
+    compression: true
+    version: "2"
+    address: vector-aggregator.monitoring.svc.cluster.local:6030
+    inputs: ["tetragon_source"]
