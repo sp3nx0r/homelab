@@ -1,0 +1,48 @@
+---
+apiVersion: helm.toolkit.fluxcd.io/v2beta2
+kind: HelmRelease
+metadata:
+  name: tetragon
+spec:
+  interval: 30m
+  chart:
+    spec:
+      chart: tetragon
+      version: 1.0.1
+      sourceRef:
+        kind: HelmRepository
+        name: cilium
+        namespace: flux-system
+  maxHistory: 2
+  install:
+    remediation:
+      retries: 3
+  upgrade:
+    cleanupOnFail: true
+    remediation:
+      retries: 3
+  uninstall:
+    keepHistory: false
+  values:
+    enabled: true
+    imagePullPolicy: Always
+    dnsPolicy: ClusterFirstWithHostNet
+    tetragon:
+      exportFileCompress: true
+      exportAllowList: |-
+        {"event_set":["PROCESS_EXEC", "PROCESS_EXIT", "PROCESS_KPROBE", "PROCESS_UPROBE", "PROCESS_TRACEPOINT"]}
+      exportDenyList: |-
+        {"health_check":true}
+        {"namespace":["", "cilium", "kube-system"]}
+      enableProcessCred: true
+      enableProcessNs: true
+      prometheus:
+        enabled: true
+        metricsLabelFilter: "namespace,workload,pod,binary"
+        serviceMonitor:
+          enabled: true
+    tetragonOperator:
+      image:
+        pullPolicy: Always
+      podInfo:
+        enabled: true

@@ -5,12 +5,13 @@ resources:
   - ./namespace.yaml
   - ./cilium/ks.yaml
   - ./coredns/ks.yaml
-  - ./local-path-provisioner/ks.yaml
-  - ./metrics-server/ks.yaml
-  - ./reloader/ks.yaml
-  - ./snapshot-controller/ks.yaml
+  - ./csi-driver-nfs/ks.yaml
   - ./descheduler/ks.yaml
   - ./intel-device-plugin/ks.yaml
+  - ./local-path-provisioner/ks.yaml
+  - ./metrics-server/ks.yaml
   - ./node-feature-discovery/ks.yaml
+  - ./reloader/ks.yaml
+  - ./snapshot-controller/ks.yaml
   - ./system-upgrade-controller/ks.yaml
-  - ./csi-driver-nfs/ks.yaml
+  - ./tetragon/ks.yaml
