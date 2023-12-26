@@ -3,6 +3,7 @@
 area/ansible:
   - changed-files:
       - any-glob-to-any-file: ansible/**/*
+      - any-glob-to-any-file: requirements.txt
 area/docs:
   - changed-files:
       - any-glob-to-any-file: docs/**/*
