@@ -27,7 +27,13 @@ spec:
   values:
     fullnameOverride: reloader
     reloader:
+      autoReloadAll: true
       reloadStrategy: annotations
+      readOnlyRootFilesystem: true
+      deployment:
+        containerSecurityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
       podMonitor:
         enabled: true
         namespace: *namespace
