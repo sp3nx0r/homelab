@@ -71,6 +71,12 @@ spec:
               fsGroup: 568
               fsGroupChangePolicy: OnRootMismatch
               supplementalGroups: [100]
+            resources:
+              requests:
+                cpu: 71m
+                memory: 1145Mi
+              limits:
+                memory: 2000Mi
     service:
       main:
         ports:
