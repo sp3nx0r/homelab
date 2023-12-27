@@ -25,8 +25,6 @@ spec:
   uninstall:
     keepHistory: false
   dependsOn:
-    # - name: intel-device-plugin-gpu
-    #   namespace: kube-system
     - name: csi-driver-nfs
       namespace: kube-system
   values:
@@ -65,21 +63,21 @@ spec:
             resources:
               requests:
                 # gpu.intel.com/i915: 1
-                cpu: 200m
-                memory: 2Gi
+                cpu: 10m
+                memory: 150Mi
               limits:
                 # gpu.intel.com/i915: 1
-                memory: 6Gi
+                memory: 1Gi
         pod:
-        #   affinity:
-        #     podAntiAffinity:
-        #       requiredDuringSchedulingIgnoredDuringExecution:
-        #         - labelSelector:
-        #             matchExpressions:
-        #               - key: app.kubernetes.io/name
-        #                 operator: In
-        #                 values: ["frigate"]
-        #           topologyKey: kubernetes.io/hostname
+          affinity:
+            podAntiAffinity:
+              requiredDuringSchedulingIgnoredDuringExecution:
+                - labelSelector:
+                    matchExpressions:
+                      - key: app.kubernetes.io/name
+                        operator: In
+                        values: ["prometheus"]
+                  topologyKey: kubernetes.io/hostname
         #   nodeSelector:
         #     intel.feature.node.kubernetes.io/gpu: "true"
           securityContext:
@@ -88,7 +86,6 @@ spec:
             runAsNonRoot: true
             fsGroup: 1001
             fsGroupChangePolicy: OnRootMismatch
-            # supplementalGroups: [44, 105, 10000]
     service:
       main:
         ports:
