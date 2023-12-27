@@ -48,6 +48,12 @@ spec:
         replicas: 2
         useExistingSecret: true
         configSecret: alertmanager-secret
+        resources:
+          requests:
+            cpu: 10m
+            memory: 100Mi
+          limits:
+            memory: 100Mi
         storage:
           volumeClaimTemplate:
             spec:
@@ -161,10 +167,10 @@ spec:
                   storage: 20Gi
         resources:
           requests:
-            cpu: 10m
-            memory: 2000Mi
+            cpu: 96m
+            memory: 1601Mi
           limits:
-            memory: 6000Mi
+            memory: 3000Mi
     nodeExporter:
       enabled: true
     prometheus-node-exporter:
