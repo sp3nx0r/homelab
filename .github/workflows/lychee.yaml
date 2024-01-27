@@ -24,7 +24,7 @@ jobs:
           output: /tmp/results.md
 
       - name: Update Issue
-        uses: peter-evans/create-issue-from-file@v4
+        uses: peter-evans/create-issue-from-file@v5
         with:
           title: Link Checker Dashboard 🔗
           issue-number: "${{ env.WORKFLOW_ISSUE_NUMBER }}"
