@@ -36,7 +36,7 @@ spec:
           main:
             image:
               repository: ghcr.io/onedr0p/plex
-              tag: 1.40.1.8227-c0dd5a73e
+              tag: rolling
             env:
               TZ: UTC
             # TODO: HTTP GET probes are not working, so defaulting back to TCP socket probes.
