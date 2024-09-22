@@ -5,7 +5,7 @@ terraform {
     endpoints = {
       s3 = "https://s3.securimancy.com"
     }
-    key        = "cloudflare.tfstate"
+    key = "cloudflare.tfstate"
 
     region                      = "main"
     skip_requesting_account_id  = true # Skip AWS related checks and validations
