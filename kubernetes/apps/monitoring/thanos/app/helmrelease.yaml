@@ -67,6 +67,7 @@ spec:
         enabled: true
         storageClass: nfs-slow
         size: 10Gi
+      resourcesPreset: small
     storegateway:
       enabled: true
       replicaCount: 2
