@@ -15,17 +15,19 @@ spec:
         namespace: flux-system
   maxHistory: 2
   install:
+    crds: CreateReplace
     remediation:
       retries: 3
   upgrade:
     cleanupOnFail: true
+    crds: CreateReplace
     remediation:
+      strategy: rollback
       retries: 3
-  uninstall:
-    keepHistory: false
   values:
     fullnameOverride: *app
-    provider: cloudflare
+    provider:
+      name: cloudflare
     env:
       - name: CF_API_TOKEN
         valueFrom:
@@ -33,10 +35,12 @@ spec:
             name: external-dns-secret
             key: api-token
     extraArgs:
-      - --ingress-class=external
+      - --cloudflare-dns-records-per-page=1000
       - --cloudflare-proxied
       - --crd-source-apiversion=externaldns.k8s.io/v1alpha1
       - --crd-source-kind=DNSEndpoint
+      - --ingress-class=external
+    triggerLoopOnEvent: true
     policy: sync
     sources: ["crd", "ingress"]
     txtPrefix: k8s.
@@ -46,9 +50,3 @@ spec:
       enabled: true
     podAnnotations:
       secret.reloader.stakater.com/reload: external-dns-secret
-    resources:
-      requests:
-        cpu: 10m
-        memory: 100Mi
-      limits:
-        memory: 100Mi
