@@ -12,7 +12,6 @@ resources:
   - ./descheduler.yaml
   - ./external-dns.yaml
   - ./grafana.yaml
-  - ./hajimari.yaml
   - ./harbor.yaml
   - ./ingress-nginx.yaml
   - ./intel.yaml
