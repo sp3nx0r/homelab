@@ -29,14 +29,14 @@ spec:
   uninstall:
     keepHistory: false
   values:
-    app:
+    controllers:
       main:
         replicas: 2
         strategy: RollingUpdate
         annotations:
           reloader.stakater.com/auto: "true"
         containers:
-          main:
+          app:
             image:
               repository: docker.io/cloudflare/cloudflared
               tag: 2024.12.2
