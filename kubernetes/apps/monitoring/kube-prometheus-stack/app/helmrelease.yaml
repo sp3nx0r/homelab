@@ -44,15 +44,9 @@ spec:
           - hosts:
               - *host
       alertmanagerSpec:
-        replicas: 2
         useExistingSecret: true
         configSecret: alertmanager-secret
-        resources:
-          requests:
-            cpu: 10m
-            memory: 100Mi
-          limits:
-            memory: 100Mi
+        externalUrl: https://alertmanager.${SECRET_DOMAIN}
         storage:
           volumeClaimTemplate:
             spec:
@@ -88,8 +82,6 @@ spec:
       thanosServiceMonitor:
         enabled: true
       prometheusSpec:
-        replicas: 2
-        replicaExternalLabelName: __replica__
         podMonitorSelectorNilUsesHelmValues: false
         probeSelectorNilUsesHelmValues: false
         ruleSelectorNilUsesHelmValues: false
@@ -100,7 +92,6 @@ spec:
         enableFeatures:
           - memory-snapshot-on-shutdown
         thanos:
-          image: quay.io/thanos/thanos:v0.37.2
           objectStorageConfig:
             existingSecret:
               name: thanos-objstore-secret
