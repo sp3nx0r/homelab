@@ -57,7 +57,7 @@ spec:
               limits: &resources
                 memory: 1Gi
               requests:
-                <<: *resources
+                memory: 256Mi
                 cpu: 10m
           jbops:
             image:
