@@ -8,5 +8,5 @@ resources:
   # Flux-Kustomizations
   - ./plex/ks.yaml
   - ./tautulli/ks.yaml
-  - ./sabnzbd/ks.yaml
-  - ./qbittorrent/ks.yaml
+  # - ./sabnzbd/ks.yaml
+  # - ./qbittorrent/ks.yaml
