@@ -19,13 +19,14 @@ provider "proxmox" {
   pm_user         = data.sops_file.proxmox_secrets.data["user"]
   pm_password     = data.sops_file.proxmox_secrets.data["password"]
   pm_tls_insecure = "true"
-  pm_parallel     = 10
+  pm_parallel     = 2
 }
 
 resource "proxmox_vm_qemu" "proxmox_vm_master" {
   count = var.num_k3s_masters
   name  = "k3s-master-${count.index}"
   desc  = "k3s-master-${count.index}"
+  vmid  = "10${count.index}"
 
   target_node = var.proxmox-cluster-name
   clone       = var.template_vm_name
@@ -53,9 +54,10 @@ resource "proxmox_vm_qemu" "proxmox_vm_master" {
 }
 
 resource "proxmox_vm_qemu" "proxmox_vm_workers" {
-  count       = var.num_k3s_nodes
-  name        = "k3s-worker-${count.index}"
-  desc        = "k3s-worker-${count.index}"
+  count = var.num_k3s_nodes
+  name  = "k3s-worker-${count.index}"
+  desc  = "k3s-worker-${count.index}"
+  vmid  = "10${var.num_k3s_masters + count.index}"
 
   target_node = var.proxmox-cluster-name
   clone       = var.template_vm_name
