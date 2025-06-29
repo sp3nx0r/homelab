@@ -15,6 +15,13 @@ data:
       id: 1
     endpointRoutes:
       enabled: true
+    envoy:
+      rollOutPods: true
+      prometheus:
+        serviceMonitor:
+          enabled: true
+    gatewayAPI:
+      enabled: true
     hubble:
       enabled: true
       metrics:
@@ -67,16 +74,17 @@ data:
       mode: dsr
     localRedirectPolicy: true
     operator:
-      replicas: 1
+      dashboards:
+        enabled: true
+        annotations:
+          grafana_folder: Ciliumreplicas: 1
       rollOutPods: true
       prometheus:
         enabled: true
         serviceMonitor:
           enabled: true
-      dashboards:
-        enabled: true
-        annotations:
-          grafana_folder: Cilium
+      replicas: 1
+      rollOutPods: true
     prometheus:
       enabled: true
       serviceMonitor:
@@ -87,5 +95,6 @@ data:
       annotations:
         grafana_folder: Cilium
     rollOutCiliumPods: true
+    routingMode: native
     securityContext:
       privileged: true
