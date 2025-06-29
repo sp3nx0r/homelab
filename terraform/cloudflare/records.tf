@@ -85,3 +85,11 @@ resource "cloudflare_record" "bluesky" {
   type    = "TXT"
   ttl     = 1
 }
+
+resource "cloudflare_record" "github_pages" {
+  name    = "_github-pages-challenge-sp3nx0r"
+  zone_id = lookup(data.cloudflare_zones.domain.zones[0], "id")
+  content = "ad440997b4fb7b298e7d2f940f9295"
+  type    = "TXT"
+  ttl     = 1
+}
