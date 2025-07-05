@@ -3,7 +3,7 @@ terraform {
     proxmox = {
       # https://github.com/Telmate/terraform-provider-proxmox/issues/863
       source  = "TheGameProfi/proxmox"
-      version = "2.9.15"
+      version = "2.10.0"
     }
     sops = {
       source  = "carlpett/sops"
