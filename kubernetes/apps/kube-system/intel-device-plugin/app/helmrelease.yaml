@@ -29,3 +29,9 @@ spec:
   dependsOn:
     - name: node-feature-discovery
       namespace: kube-system
+  values:
+    manager:
+      devices:
+        gpu: true
+    webhook:
+      enabled: false
