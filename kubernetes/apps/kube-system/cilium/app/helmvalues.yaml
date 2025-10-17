@@ -74,7 +74,8 @@ data:
       dashboards:
         enabled: true
         annotations:
-          grafana_folder: Ciliumreplicas: 1
+          grafana_folder: Cilium
+      replicas: 1
       rollOutPods: true
       prometheus:
         enabled: true
