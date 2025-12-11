@@ -31,7 +31,7 @@ spec:
           main:
             image:
               repository: ghcr.io/unpoller/unpoller
-              tag: v2.15.4
+              tag: v2.19.0
             env:
               TZ: UTC
               UP_UNIFI_DEFAULT_ROLE: home-kubernetes
