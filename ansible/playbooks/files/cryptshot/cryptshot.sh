@@ -21,7 +21,7 @@
 ###############################################################################
 
 # Define the UUID of the backup volume.
-UUID="e3f3dee1-7988-4b9f-996f-a0386ebc75db"
+UUID="8deb0e55-480c-46c8-a11a-2cf201df4f2e"
 
 # Define the location of the LUKS key file.
 KEYFILE="/root/external_drive.keyfile"
