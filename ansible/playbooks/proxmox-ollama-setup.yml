@@ -362,6 +362,11 @@
         ln -sf /etc/nginx/sites-available/ollama /etc/nginx/sites-enabled/ollama &&
         rm -f /etc/nginx/sites-enabled/default'
 
+    - name: Ensure nginx waits for network to be online before starting
+      command: >
+        pct exec {{ ollama_ctid }} -- bash -c '
+        systemctl enable systemd-networkd-wait-online.service'
+
     - name: Restart Ollama and nginx in container
       command: >
         pct exec {{ ollama_ctid }} -- bash -c '
