@@ -104,16 +104,8 @@
         update_cache: true
 
     # =========================================================================
-    # SECTION 2: GRUB - Remove nomodeset for GPU driver
+    # SECTION 2: GRUB - Disable ASPM for PCIe NICs
     # =========================================================================
-    - name: Ensure nomodeset is not in GRUB installer config
-      copy:
-        dest: /etc/default/grub.d/installer.cfg
-        content: |
-          GRUB_CMDLINE_LINUX="$GRUB_CMDLINE_LINUX "
-        mode: "0644"
-      register: grub_installer
-
     - name: Ensure GRUB defaults have pcie_aspm=off
       lineinfile:
         path: /etc/default/grub
