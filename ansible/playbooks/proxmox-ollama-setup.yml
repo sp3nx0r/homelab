@@ -1,0 +1,487 @@
+---
+# Ansible playbook for Proxmox + Ollama + GPU passthrough setup
+# Target: Miniforum MS-S1 MAX (Ryzen AI MAX+ 395 / Radeon 8060S)
+#
+# Usage:
+#   ansible-playbook -i '192.168.5.5,' -u root proxmox-ollama-setup.yml
+#
+# Variables you may want to override:
+#   -e ollama_api_key=<your-key>
+#   -e ollama_models='["llama3.3","qwen2.5-coder:32b"]'
+
+- name: Proxmox host configuration
+  hosts: all
+  gather_facts: true
+  vars:
+    # Network
+    host_ip: 192.168.5.5
+    gateway: 192.168.5.1
+    bridge_port: enp97s0  # Primary Realtek NIC
+
+    # Ollama LXC
+    ollama_ctid: 100
+    ollama_ip: 192.168.5.100
+    ollama_disk_gb: 100
+    ollama_cores: 16
+    ollama_memory_mb: 65536
+    ollama_api_key: "{{ lookup('env', 'OLLAMA_API_KEY') | default('CHANGE_ME_GENERATE_A_KEY', true) }}"
+    ollama_models:
+      - llama3.3
+      - qwen2.5-coder:32b
+
+    # OpenClaw LXC
+    openclaw_ctid: 101
+    openclaw_ip: 192.168.5.101
+    openclaw_disk_gb: 16
+    openclaw_cores: 4
+    openclaw_memory_mb: 4096
+
+    # SSH public key to install in containers
+    ssh_pubkey_path: ~/.ssh/personal.pub
+
+    # Realtek NIC PCI info (for recovery script)
+    realtek_pci_id: "10ec:8127"
+    realtek_bridge_addrs:
+      - "0000:00:02.1"
+      - "0000:00:02.2"
+
+    # LXC template
+    lxc_template: "debian-13-standard_13.1-2_amd64.tar.zst"
+    lxc_template_url: "http://download.proxmox.com/images/system/{{ lxc_template }}"
+
+  tasks:
+    # =========================================================================
+    # SECTION 1: APT - Switch to Proxmox community repos
+    # =========================================================================
+    - name: Disable PVE enterprise repo
+      copy:
+        dest: /etc/apt/sources.list.d/pve-enterprise.sources
+        content: |
+          Enabled: no
+          Types: deb
+          URIs: https://enterprise.proxmox.com/debian/pve
+          Suites: trixie
+          Components: pve-enterprise
+          Signed-By: /usr/share/keyrings/proxmox-archive-keyring.gpg
+        mode: "0644"
+
+    - name: Disable Ceph enterprise repo
+      copy:
+        dest: /etc/apt/sources.list.d/ceph.sources
+        content: |
+          Enabled: no
+          Types: deb
+          URIs: https://enterprise.proxmox.com/debian/ceph-squid
+          Suites: trixie
+          Components: enterprise
+          Signed-By: /usr/share/keyrings/proxmox-archive-keyring.gpg
+        mode: "0644"
+
+    - name: Add PVE no-subscription repo
+      copy:
+        dest: /etc/apt/sources.list.d/pve-no-subscription.sources
+        content: |
+          Types: deb
+          URIs: http://download.proxmox.com/debian/pve
+          Suites: trixie
+          Components: pve-no-subscription
+          Signed-By: /usr/share/keyrings/proxmox-archive-keyring.gpg
+        mode: "0644"
+
+    - name: Add Ceph no-subscription repo
+      copy:
+        dest: /etc/apt/sources.list.d/ceph-no-subscription.sources
+        content: |
+          Types: deb
+          URIs: http://download.proxmox.com/debian/ceph-squid
+          Suites: trixie
+          Components: no-subscription
+          Signed-By: /usr/share/keyrings/proxmox-archive-keyring.gpg
+        mode: "0644"
+
+    - name: Update apt cache
+      apt:
+        update_cache: true
+
+    # =========================================================================
+    # SECTION 2: GRUB - Remove nomodeset for GPU driver
+    # =========================================================================
+    - name: Ensure nomodeset is not in GRUB installer config
+      copy:
+        dest: /etc/default/grub.d/installer.cfg
+        content: |
+          GRUB_CMDLINE_LINUX="$GRUB_CMDLINE_LINUX "
+        mode: "0644"
+      register: grub_installer
+
+    - name: Ensure GRUB defaults have pcie_aspm=off
+      lineinfile:
+        path: /etc/default/grub
+        regexp: '^GRUB_CMDLINE_LINUX_DEFAULT='
+        line: 'GRUB_CMDLINE_LINUX_DEFAULT="quiet pcie_aspm=off"'
+      register: grub_defaults
+
+    - name: Update GRUB
+      command: update-grub
+      when: grub_installer.changed or grub_defaults.changed
+
+    # =========================================================================
+    # SECTION 3: /etc/hosts - Ensure hostname resolves
+    # =========================================================================
+    - name: Ensure hostname resolves in /etc/hosts
+      lineinfile:
+        path: /etc/hosts
+        regexp: '.*{{ ansible_hostname }}.*'
+        line: "{{ host_ip }} {{ ansible_hostname }}.securimancy.com {{ ansible_hostname }}"
+        insertafter: '^127\.0\.0\.1'
+        state: present
+
+    # =========================================================================
+    # SECTION 4: GPU - udev rules for container passthrough
+    # =========================================================================
+    - name: Create udev rules for GPU container access
+      copy:
+        dest: /etc/udev/rules.d/99-gpu-container.rules
+        content: |
+          SUBSYSTEM=="drm", MODE="0666"
+          KERNEL=="kfd", MODE="0666"
+        mode: "0644"
+      register: udev_rules
+
+    - name: Reload udev rules
+      command: udevadm control --reload-rules
+      when: udev_rules.changed
+
+    # =========================================================================
+    # SECTION 5: PCIe NIC recovery service
+    # =========================================================================
+    - name: Install PCIe NIC recovery script
+      copy:
+        dest: /usr/local/bin/pcie-nic-recovery.sh
+        mode: "0755"
+        content: |
+          #!/bin/bash
+          # PCIe NIC recovery - resets root port bridges if Realtek NICs are missing
+          LOG_TAG="pcie-nic-recovery"
+
+          if lspci -d {{ realtek_pci_id }} | grep -q Realtek; then
+              logger -t $LOG_TAG "Realtek NICs detected, no recovery needed"
+              exit 0
+          fi
+
+          logger -t $LOG_TAG "Realtek NICs NOT found, attempting PCIe bridge reset..."
+
+          for BRIDGE in {{ realtek_bridge_addrs | join(' ') }}; do
+              if [ -e /sys/bus/pci/devices/$BRIDGE ]; then
+                  logger -t $LOG_TAG "Resetting bridge $BRIDGE"
+                  echo 1 > /sys/bus/pci/devices/$BRIDGE/reset 2>/dev/null || \
+                  setpci -s $BRIDGE BRIDGE_CONTROL.w=0x40:0x40 2>/dev/null
+                  sleep 0.5
+                  setpci -s $BRIDGE BRIDGE_CONTROL.w=0x00:0x40 2>/dev/null
+                  sleep 0.5
+              fi
+          done
+
+          sleep 1
+          logger -t $LOG_TAG "Rescanning PCI bus..."
+          echo 1 > /sys/bus/pci/rescan
+          sleep 2
+
+          if lspci -d {{ realtek_pci_id }} | grep -q Realtek; then
+              logger -t $LOG_TAG "SUCCESS: Realtek NICs recovered after bridge reset"
+              systemctl restart networking 2>/dev/null || true
+          else
+              logger -t $LOG_TAG "FAILED: Realtek NICs still not present after reset"
+              for BRIDGE in {{ realtek_bridge_addrs | join(' ') }}; do
+                  echo 1 > /sys/bus/pci/devices/$BRIDGE/remove 2>/dev/null
+              done
+              sleep 1
+              echo 1 > /sys/bus/pci/rescan
+              sleep 2
+              if lspci -d {{ realtek_pci_id }} | grep -q Realtek; then
+                  logger -t $LOG_TAG "SUCCESS: Realtek NICs recovered after bridge remove+rescan"
+                  systemctl restart networking 2>/dev/null || true
+              else
+                  logger -t $LOG_TAG "FAILED: Realtek NICs could not be recovered. Full power cycle needed."
+              fi
+          fi
+
+    - name: Install PCIe NIC recovery systemd service
+      copy:
+        dest: /etc/systemd/system/pcie-nic-recovery.service
+        mode: "0644"
+        content: |
+          [Unit]
+          Description=PCIe NIC recovery after dirty shutdown
+          DefaultDependencies=no
+          Before=network-pre.target systemd-networkd.service networking.service
+          After=systemd-modules-load.service
+          Wants=network-pre.target
+
+          [Service]
+          Type=oneshot
+          ExecStart=/usr/local/bin/pcie-nic-recovery.sh
+          RemainAfterExit=yes
+          TimeoutStartSec=30
+
+          [Install]
+          WantedBy=sysinit.target
+      register: nic_recovery_service
+
+    - name: Enable PCIe NIC recovery service
+      systemd:
+        name: pcie-nic-recovery.service
+        enabled: true
+        daemon_reload: "{{ nic_recovery_service.changed }}"
+
+    # =========================================================================
+    # SECTION 6: Hardware watchdog via systemd
+    # =========================================================================
+    - name: Load SP5100 TCO watchdog module
+      modprobe:
+        name: sp5100_tco
+        state: present
+
+    - name: Ensure SP5100 TCO loads at boot
+      copy:
+        dest: /etc/modules-load.d/sp5100-tco.conf
+        content: |
+          sp5100_tco
+        mode: "0644"
+
+    - name: Configure systemd hardware watchdog
+      copy:
+        dest: /etc/systemd/system.conf.d/watchdog.conf
+        content: |
+          [Manager]
+          RuntimeWatchdogSec=30
+          RuntimeWatchdogPreSec=15
+          RebootWatchdogSec=10min
+          WatchdogDevice=/dev/watchdog1
+        mode: "0644"
+
+    # =========================================================================
+    # SECTION 7: LXC template
+    # =========================================================================
+    - name: Download LXC template
+      command: pveam download local {{ lxc_template }}
+      args:
+        creates: /var/lib/vz/template/cache/{{ lxc_template }}
+
+    # =========================================================================
+    # SECTION 8: Ollama LXC container (CT 100)
+    # =========================================================================
+    - name: Check if Ollama container exists
+      command: pct status {{ ollama_ctid }}
+      register: ollama_ct_check
+      ignore_errors: true
+      changed_when: false
+
+    - name: Create Ollama container
+      command: >
+        pct create {{ ollama_ctid }}
+        local:vztmpl/{{ lxc_template }}
+        --hostname ollama
+        --cores {{ ollama_cores }}
+        --memory {{ ollama_memory_mb }}
+        --swap 0
+        --storage local-lvm
+        --rootfs local-lvm:{{ ollama_disk_gb }}
+        --net0 name=eth0,bridge=vmbr0,ip={{ ollama_ip }}/24,gw={{ gateway }}
+        --unprivileged 1
+        --features nesting=1
+        --onboot 1
+        --startup order=1
+      when: ollama_ct_check.rc != 0
+
+    - name: Configure GPU passthrough for Ollama container
+      blockinfile:
+        path: /etc/pve/lxc/{{ ollama_ctid }}.conf
+        marker: "# {mark} GPU PASSTHROUGH"
+        block: |
+          lxc.cgroup2.devices.allow: c 226:* rwm
+          lxc.cgroup2.devices.allow: c 234:* rwm
+          lxc.mount.entry: /dev/dri dev/dri none bind,optional,create=dir 0 0
+          lxc.mount.entry: /dev/kfd dev/kfd none bind,optional,create=file 0 0
+
+    - name: Start Ollama container
+      command: pct start {{ ollama_ctid }}
+      register: ollama_start
+      failed_when: ollama_start.rc != 0 and 'already running' not in ollama_start.stderr
+      changed_when: ollama_start.rc == 0
+
+    - name: Wait for Ollama container to be ready
+      pause:
+        seconds: 5
+
+    - name: Set DNS in Ollama container
+      command: pct exec {{ ollama_ctid }} -- bash -c 'echo "nameserver 1.1.1.1" > /etc/resolv.conf'
+
+    - name: Install Ollama prerequisites
+      command: pct exec {{ ollama_ctid }} -- bash -c 'apt-get update -qq && apt-get install -y -qq curl zstd nginx pciutils'
+      register: ollama_prereqs
+      changed_when: "'newly installed' in ollama_prereqs.stdout"
+
+    - name: Check if Ollama is installed
+      command: pct exec {{ ollama_ctid }} -- which ollama
+      register: ollama_installed
+      ignore_errors: true
+      changed_when: false
+
+    - name: Install Ollama
+      command: pct exec {{ ollama_ctid }} -- bash -c 'curl -fsSL https://ollama.com/install.sh | sh'
+      when: ollama_installed.rc != 0
+      timeout: 300
+
+    - name: Configure Ollama to listen on localhost only
+      command: >
+        pct exec {{ ollama_ctid }} -- bash -c '
+        mkdir -p /etc/systemd/system/ollama.service.d &&
+        cat > /etc/systemd/system/ollama.service.d/override.conf <<EOF
+        [Service]
+        Environment="OLLAMA_HOST=127.0.0.1:11434"
+        EOF'
+
+    - name: Configure nginx API key proxy for Ollama
+      command: >
+        pct exec {{ ollama_ctid }} -- bash -c '
+        cat > /etc/nginx/sites-available/ollama <<NGINX
+        server {
+            listen {{ ollama_ip }}:11435;
+
+            location / {
+                if (\$http_authorization != "Bearer {{ ollama_api_key }}") {
+                    return 401 "{\"error\": \"unauthorized\"}";
+                }
+
+                proxy_pass http://127.0.0.1:11434;
+                proxy_set_header Host \$host;
+                proxy_set_header X-Real-IP \$remote_addr;
+                proxy_buffering off;
+                proxy_read_timeout 600s;
+                proxy_send_timeout 600s;
+
+                proxy_set_header Connection "";
+                proxy_http_version 1.1;
+                chunked_transfer_encoding on;
+            }
+        }
+        NGINX
+        ln -sf /etc/nginx/sites-available/ollama /etc/nginx/sites-enabled/ollama &&
+        rm -f /etc/nginx/sites-enabled/default'
+
+    - name: Restart Ollama and nginx in container
+      command: >
+        pct exec {{ ollama_ctid }} -- bash -c '
+        systemctl daemon-reload &&
+        systemctl restart ollama &&
+        systemctl restart nginx &&
+        systemctl enable nginx'
+
+    - name: Wait for Ollama to be ready
+      command: pct exec {{ ollama_ctid }} -- curl -sf --max-time 5 http://localhost:11434/
+      register: ollama_health
+      retries: 10
+      delay: 3
+      until: ollama_health.rc == 0
+
+    - name: Install SSH key in Ollama container
+      command: >
+        pct exec {{ ollama_ctid }} -- bash -c '
+        mkdir -p /root/.ssh &&
+        chmod 700 /root/.ssh &&
+        echo "{{ lookup("file", ssh_pubkey_path) }}" > /root/.ssh/authorized_keys &&
+        chmod 600 /root/.ssh/authorized_keys'
+
+    - name: Pull Ollama models
+      command: pct exec {{ ollama_ctid }} -- ollama pull {{ item }}
+      loop: "{{ ollama_models }}"
+      timeout: 900
+      register: model_pull
+      changed_when: "'already exists' not in model_pull.stdout"
+
+    # =========================================================================
+    # SECTION 9: OpenClaw LXC container (CT 101)
+    # =========================================================================
+    - name: Check if OpenClaw container exists
+      command: pct status {{ openclaw_ctid }}
+      register: openclaw_ct_check
+      ignore_errors: true
+      changed_when: false
+
+    - name: Create OpenClaw container
+      command: >
+        pct create {{ openclaw_ctid }}
+        local:vztmpl/{{ lxc_template }}
+        --hostname openclaw
+        --cores {{ openclaw_cores }}
+        --memory {{ openclaw_memory_mb }}
+        --swap 0
+        --storage local-lvm
+        --rootfs local-lvm:{{ openclaw_disk_gb }}
+        --net0 name=eth0,bridge=vmbr0,ip={{ openclaw_ip }}/24,gw={{ gateway }}
+        --unprivileged 1
+        --features nesting=1
+        --onboot 1
+        --startup order=2
+      when: openclaw_ct_check.rc != 0
+
+    - name: Start OpenClaw container
+      command: pct start {{ openclaw_ctid }}
+      register: openclaw_start
+      failed_when: openclaw_start.rc != 0 and 'already running' not in openclaw_start.stderr
+      changed_when: openclaw_start.rc == 0
+
+    - name: Wait for OpenClaw container to be ready
+      pause:
+        seconds: 5
+
+    - name: Set DNS in OpenClaw container
+      command: pct exec {{ openclaw_ctid }} -- bash -c 'echo "nameserver 1.1.1.1" > /etc/resolv.conf'
+
+    - name: Install curl in OpenClaw container
+      command: pct exec {{ openclaw_ctid }} -- bash -c 'apt-get update -qq && apt-get install -y -qq curl'
+      register: openclaw_prereqs
+      changed_when: "'newly installed' in openclaw_prereqs.stdout"
+
+    - name: Install SSH key in OpenClaw container
+      command: >
+        pct exec {{ openclaw_ctid }} -- bash -c '
+        mkdir -p /root/.ssh &&
+        chmod 700 /root/.ssh &&
+        echo "{{ lookup("file", ssh_pubkey_path) }}" > /root/.ssh/authorized_keys &&
+        chmod 600 /root/.ssh/authorized_keys'
+
+    # =========================================================================
+    # SECTION 10: Validation
+    # =========================================================================
+    - name: Verify Ollama API with key from OpenClaw
+      command: >
+        pct exec {{ openclaw_ctid }} -- curl -sf --max-time 5
+        -H "Authorization: Bearer {{ ollama_api_key }}"
+        http://{{ ollama_ip }}:11435/
+      register: api_test
+      changed_when: false
+
+    - name: Print summary
+      debug:
+        msg: |
+          ============================================
+          Setup complete!
+          ============================================
+          Proxmox host:     {{ host_ip }}
+          Ollama container:  CT {{ ollama_ctid }} @ {{ ollama_ip }}
+            - API (auth):    http://{{ ollama_ip }}:11435
+            - API (local):   http://127.0.0.1:11434  (inside container)
+            - API key:       {{ ollama_api_key }}
+            - Models:        {{ ollama_models | join(', ') }}
+            - GPU:           AMD Radeon 8060S via ROCm (63.7 GiB)
+          OpenClaw container: CT {{ openclaw_ctid }} @ {{ openclaw_ip }}
+
+          SSH access:
+            ssh -i {{ ssh_pubkey_path | replace('.pub','') }} root@{{ ollama_ip }}
+            ssh -i {{ ssh_pubkey_path | replace('.pub','') }} root@{{ openclaw_ip }}
+
+          PCIe NIC recovery:  enabled (auto-resets on boot)
+          Hardware watchdog:   SP5100 TCO (30s timeout)
+          ============================================
