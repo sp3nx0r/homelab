@@ -29,6 +29,9 @@ spec:
     - name: csi-driver-nfs
       namespace: kube-system
   values:
+    image:
+      registry: quay.io
+      repository: thanos/thanos
     existingObjstoreSecret: thanos-objstore-secret
     queryFrontend:
       enabled: true
