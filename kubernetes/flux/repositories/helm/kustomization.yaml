@@ -17,7 +17,7 @@ resources:
   - ./intel.yaml
   - ./jetstack.yaml
   - ./k8s-gateway.yaml
-  - ./kubernetes-dashboard.yaml
+  - ./headlamp.yaml
   - ./metrics-server.yaml
   - ./minio.yaml
   - ./node-feature-discovery.yaml

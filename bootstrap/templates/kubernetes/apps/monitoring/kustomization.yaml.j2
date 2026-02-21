@@ -10,6 +10,3 @@ resources:
   {% if kube_prometheus_stack.enabled | default(false) %}
   - ./kube-prometheus-stack/ks.yaml
   {% endif %}
-  {% if kubernetes_dashboard.enabled | default(false) %}
-  - ./kubernetes-dashboard/ks.yaml
-  {% endif %}

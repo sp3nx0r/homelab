@@ -1,9 +1,4 @@
 ---
-- name: Set addon facts
-  ansible.builtin.set_fact:
-    addon_name: kubernetes-dashboard
-    addon_namespace: monitoring
-
 - name: Ensure directories exist for {{ addon_namespace }}/{{ addon_name }}
   when: item.state == 'directory'
   ansible.builtin.file:
