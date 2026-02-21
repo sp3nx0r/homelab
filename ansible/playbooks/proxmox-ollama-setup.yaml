@@ -21,13 +21,15 @@
     # Ollama LXC
     ollama_ctid: 100
     ollama_ip: 192.168.5.100
-    ollama_disk_gb: 100
+    ollama_disk_gb: 492
     ollama_cores: 16
-    ollama_memory_mb: 65536
+    ollama_memory_mb: 98304
     ollama_api_key: "{{ lookup('env', 'OLLAMA_API_KEY') | default('CHANGE_ME_GENERATE_A_KEY', true) }}"
     ollama_models:
-      - llama3.3
-      - qwen2.5-coder:32b
+      - huihui_ai/qwen3-abliterated:latest
+      - qwegabegoodhart/minimax-m2.1:latest
+      - qwen3:32b
+      - qwen3-coder:latest
 
     # OpenClaw LXC
     openclaw_ctid: 101
@@ -110,7 +112,7 @@
       lineinfile:
         path: /etc/default/grub
         regexp: '^GRUB_CMDLINE_LINUX_DEFAULT='
-        line: 'GRUB_CMDLINE_LINUX_DEFAULT="quiet pcie_aspm=off"'
+        line: 'GRUB_CMDLINE_LINUX_DEFAULT="quiet pcie_aspm=off amdgpu.gttsize=98304 ttm.pages_limit=25165824"'
       register: grub_defaults
 
     - name: Update GRUB
@@ -253,7 +255,80 @@
         mode: "0644"
 
     # =========================================================================
-    # SECTION 7: LXC template
+    # SECTION 7a: Host memory tuning for LXC container cache pressure
+    # =========================================================================
+    # LXC containers share the host kernel page cache. Large model files
+    # (Ollama) fill the cgroup's memory limit with cached pages. The kernel
+    # won't reclaim them proactively, so Ollama sees "insufficient memory"
+    # even though the cache is reclaimable. These sysctls + cgroup settings
+    # fix that without resorting to global drop_caches.
+
+    - name: Tune host sysctls for LXC memory cache management
+      sysctl:
+        name: "{{ item.name }}"
+        value: "{{ item.value }}"
+        sysctl_file: /etc/sysctl.d/99-lxc-memory.conf
+        reload: true
+        state: present
+      loop:
+        - name: vm.vfs_cache_pressure
+          value: "200"
+        - name: vm.min_free_kbytes
+          value: "1048576"
+        - name: vm.watermark_boost_factor
+          value: "15000"
+        - name: vm.watermark_scale_factor
+          value: "50"
+
+    - name: Install Ollama container memory reclaim service
+      copy:
+        dest: /etc/systemd/system/lxc-memory-reclaim@.service
+        mode: "0644"
+        content: |
+          [Unit]
+          Description=Reclaim cached memory for LXC container %i
+          ConditionPathExists=/sys/fs/cgroup/lxc/%i/memory.reclaim
+
+          [Service]
+          Type=oneshot
+          ExecStart=/bin/bash -c '\
+            CGROUP=/sys/fs/cgroup/lxc/%i; \
+            CURRENT=$(cat $CGROUP/memory.current 2>/dev/null || echo 0); \
+            HIGH=$(cat $CGROUP/memory.high 2>/dev/null || echo 0); \
+            if [ "$HIGH" = "max" ] || [ "$HIGH" -eq 0 ]; then exit 0; fi; \
+            EXCESS=$((CURRENT - HIGH)); \
+            if [ "$EXCESS" -gt 0 ]; then \
+              echo $EXCESS > $CGROUP/memory.reclaim 2>/dev/null || true; \
+              logger -t lxc-memory-reclaim "CT %i: reclaimed up to $((EXCESS/1048576))MiB"; \
+            fi'
+
+    - name: Install Ollama container memory reclaim timer
+      copy:
+        dest: /etc/systemd/system/lxc-memory-reclaim@.timer
+        mode: "0644"
+        content: |
+          [Unit]
+          Description=Periodic memory reclaim for LXC container %i
+
+          [Timer]
+          OnBootSec=5min
+          OnUnitActiveSec=10min
+          RandomizedDelaySec=60
+          AccuracySec=60
+
+          [Install]
+          WantedBy=timers.target
+      register: reclaim_timer
+
+    - name: Enable memory reclaim timer for Ollama container
+      systemd:
+        name: "lxc-memory-reclaim@{{ ollama_ctid }}.timer"
+        enabled: true
+        state: started
+        daemon_reload: "{{ reclaim_timer.changed }}"
+
+    # =========================================================================
+    # SECTION 7b: LXC template
     # =========================================================================
     - name: Download LXC template
       command: pveam download local {{ lxc_template }}
@@ -306,11 +381,75 @@
       pause:
         seconds: 5
 
+    - name: Apply cgroup memory.high for Ollama container (90% of hard limit)
+      shell: |
+        CGROUP="/sys/fs/cgroup/lxc/{{ ollama_ctid }}"
+        if [ -f "$CGROUP/memory.high" ]; then
+          HIGH=$(( {{ ollama_memory_mb }} * 1024 * 1024 * 9 / 10 ))
+          echo $HIGH > "$CGROUP/memory.high"
+          echo "Set memory.high to $((HIGH/1048576))MiB"
+        else
+          echo "cgroup path not found or memory.high not available"
+        fi
+      register: memory_high_result
+      changed_when: "'Set memory.high' in memory_high_result.stdout"
+
+    - name: Ensure Proxmox snippets directory exists
+      file:
+        path: /var/lib/vz/snippets
+        state: directory
+        mode: "0755"
+
+    - name: Install hookscript as Proxmox snippet
+      copy:
+        dest: /var/lib/vz/snippets/hookscript-memory-high-{{ ollama_ctid }}.sh
+        mode: "0755"
+        content: |
+          #!/usr/bin/perl
+          # Proxmox hookscript: set memory.high to 90% of memory.max
+          use strict;
+          use warnings;
+
+          my $vmid = shift;
+          my $phase = shift;
+
+          if ($phase eq 'post-start') {
+              sleep(2);
+              my $cgroup = "/sys/fs/cgroup/lxc/$vmid";
+              if (-f "$cgroup/memory.high") {
+                  open(my $fh, '<', "$cgroup/memory.max") or exit 0;
+                  my $max = <$fh>;
+                  chomp($max);
+                  close($fh);
+                  if ($max ne 'max' && $max > 0) {
+                      my $high = int($max * 9 / 10);
+                      open(my $wh, '>', "$cgroup/memory.high") or exit 0;
+                      print $wh $high;
+                      close($wh);
+                      system("logger -t hookscript 'CT $vmid: set memory.high to " . int($high/1048576) . "MiB'");
+                  }
+              }
+          }
+
+          exit(0);
+
+    - name: Set hookscript on Ollama container
+      command: pct set {{ ollama_ctid }} --hookscript local:snippets/hookscript-memory-high-{{ ollama_ctid }}.sh
+      register: hookscript_set
+      changed_when: hookscript_set.rc == 0
+      failed_when: false
+
     - name: Set DNS in Ollama container
-      command: pct exec {{ ollama_ctid }} -- bash -c 'echo "nameserver 1.1.1.1" > /etc/resolv.conf'
+      command: pct exec {{ ollama_ctid }} -- bash -c 'echo "nameserver 192.168.5.1" > /etc/resolv.conf'
+
+    - name: Fix locale in Ollama container - uncomment en_US.UTF-8
+      command: pct exec {{ ollama_ctid }} -- sed -i 's/^# *\(en_US\.UTF-8 UTF-8\)/\1/' /etc/locale.gen
+
+    - name: Generate locale in Ollama container
+      command: pct exec {{ ollama_ctid }} -- locale-gen
 
     - name: Install Ollama prerequisites
-      command: pct exec {{ ollama_ctid }} -- bash -c 'apt-get update -qq && apt-get install -y -qq curl zstd nginx pciutils'
+      command: pct exec {{ ollama_ctid }} -- bash -c 'apt-get update -qq && apt-get install -y -qq curl zstd nginx pciutils vmtouch'
       register: ollama_prereqs
       changed_when: "'newly installed' in ollama_prereqs.stdout"
 
@@ -325,15 +464,21 @@
       when: ollama_installed.rc != 0
       timeout: 300
 
-    - name: Configure Ollama to listen on localhost only
+    - name: Configure Ollama daemon overrides
       command: >
         pct exec {{ ollama_ctid }} -- bash -c '
         mkdir -p /etc/systemd/system/ollama.service.d &&
         cat > /etc/systemd/system/ollama.service.d/override.conf <<EOF
         [Service]
-        Environment="OLLAMA_HOST=127.0.0.1:11434"
+        Environment="OLLAMA_HOST=0.0.0.0:11434"
+        Environment="OLLAMA_KEEP_ALIVE=24h"
+        Environment="OLLAMA_NUM_PARALLEL=1"
+        Environment="OLLAMA_CONTEXT_LENGTH=65536"
+        Environment="OLLAMA_LOAD_TIMEOUT=30m"
+        Environment="HSA_ENABLE_SDMA=0"
         EOF'
 
+    # TODO: actually use this
     - name: Configure nginx API key proxy for Ollama
       command: >
         pct exec {{ ollama_ctid }} -- bash -c '
@@ -367,10 +512,30 @@
         pct exec {{ ollama_ctid }} -- bash -c '
         systemctl enable systemd-networkd-wait-online.service'
 
+    - name: Install Ollama model pre-warm service
+      command: >
+        pct exec {{ ollama_ctid }} -- bash -c '
+        cat > /etc/systemd/system/ollama-warm-cache.service <<WARMEOF
+        [Unit]
+        Description=Pre-warm Ollama model files into page cache
+        Before=ollama.service
+        After=local-fs.target
+
+        [Service]
+        Type=oneshot
+        ExecStart=/usr/bin/vmtouch -t /usr/share/ollama/.ollama/models/blobs/
+        TimeoutStartSec=300
+        Nice=19
+
+        [Install]
+        WantedBy=multi-user.target
+        WARMEOF'
+
     - name: Restart Ollama and nginx in container
       command: >
         pct exec {{ ollama_ctid }} -- bash -c '
         systemctl daemon-reload &&
+        systemctl enable ollama-warm-cache.service &&
         systemctl restart ollama &&
         systemctl restart nginx &&
         systemctl enable nginx'
@@ -416,7 +581,7 @@
         --swap 0
         --storage local-lvm
         --rootfs local-lvm:{{ openclaw_disk_gb }}
-        --net0 name=eth0,bridge=vmbr0,ip={{ openclaw_ip }}/24,gw={{ gateway }}
+        --net0 name=eth0,bridge=vmbr0,ip={{ openclaw_ip }}/24,gw={{ gateway }},firewall=1
         --unprivileged 1
         --features nesting=1
         --onboot 1
@@ -436,6 +601,12 @@
     - name: Set DNS in OpenClaw container
       command: pct exec {{ openclaw_ctid }} -- bash -c 'echo "nameserver 1.1.1.1" > /etc/resolv.conf'
 
+    - name: Fix locale in OpenClaw container - uncomment en_US.UTF-8
+      command: pct exec {{ openclaw_ctid }} -- sed -i 's/^# *\(en_US\.UTF-8 UTF-8\)/\1/' /etc/locale.gen
+
+    - name: Generate locale in OpenClaw container
+      command: pct exec {{ openclaw_ctid }} -- locale-gen
+
     - name: Install curl in OpenClaw container
       command: pct exec {{ openclaw_ctid }} -- bash -c 'apt-get update -qq && apt-get install -y -qq curl'
       register: openclaw_prereqs
@@ -450,7 +621,220 @@
         chmod 600 /root/.ssh/authorized_keys'
 
     # =========================================================================
-    # SECTION 10: Validation
+    # SECTION 10: OpenClaw backup (git repo on host, rsync from CT 101)
+    # =========================================================================
+    # Syncs ~/.openclaw from the OpenClaw container to a git repo on the
+    # Proxmox host every 30 minutes. Each sync auto-commits if files changed.
+    # The repo can later be pushed to GitHub for offsite backup.
+
+    - name: Install git and git-lfs on Proxmox host
+      apt:
+        name:
+          - git
+          - git-lfs
+        state: present
+
+    - name: Initialize OpenClaw backup repo
+      shell: |
+        mkdir -p /root/backups/openclaw
+        cd /root/backups/openclaw
+        if [ ! -d .git ]; then
+          git init
+          git lfs install
+          git lfs track "*.db" "*.sqlite" "*.sqlite3" "*.bin" "*.tar" "*.tar.gz" "*.zip"
+          git add .gitattributes
+          git -c user.name="backup" -c user.email="backup@proxmox.local" \
+            commit -m "Initialize backup repo with LFS tracking"
+        fi
+      args:
+        creates: /root/backups/openclaw/.git
+
+    - name: Install .gitignore for OpenClaw backup
+      copy:
+        dest: /root/backups/openclaw/.gitignore
+        mode: "0644"
+        content: |
+          # OpenClaw backup .gitignore
+          # Temp and lock files
+          *.tmp
+          *.lock
+          *.swp
+          *~
+
+          # Logs rotate frequently and aren't worth versioning
+          logs/
+
+    - name: Install OpenClaw backup sync script
+      copy:
+        dest: /usr/local/bin/openclaw-backup.sh
+        mode: "0755"
+        content: |
+          #!/bin/bash
+          # Sync ~/.openclaw from CT {{ openclaw_ctid }} to local git repo
+          set -euo pipefail
+          LOG_TAG="openclaw-backup"
+          BACKUP_DIR="/root/backups/openclaw"
+          SSH_KEY="{{ ssh_pubkey_path | replace('.pub', '') }}"
+          SOURCE="root@{{ openclaw_ip }}:~/.openclaw/"
+
+          # Skip if container is not running
+          if ! pct status {{ openclaw_ctid }} 2>/dev/null | grep -q running; then
+            logger -t "$LOG_TAG" "CT {{ openclaw_ctid }} not running, skipping"
+            exit 0
+          fi
+
+          # Rsync from container to backup dir
+          rsync -az --delete \
+            --exclude='.git/' \
+            --exclude='*.tmp' \
+            --exclude='*.lock' \
+            --exclude='*.swp' \
+            --exclude='logs/' \
+            -e "ssh -i $SSH_KEY -o StrictHostKeyChecking=no -o ConnectTimeout=10" \
+            "$SOURCE" "$BACKUP_DIR/"
+
+          cd "$BACKUP_DIR"
+
+          # Check for changes
+          git add -A
+          if git diff --cached --quiet; then
+            logger -t "$LOG_TAG" "No changes detected"
+            exit 0
+          fi
+
+          # Build commit message from changed files
+          ADDED=$(git diff --cached --numstat | grep -c '^[0-9]' || true)
+          SUMMARY=$(git diff --cached --stat | tail -1)
+          TIMESTAMP=$(date -u +"%Y-%m-%d %H:%M:%S UTC")
+
+          git -c user.name="backup" -c user.email="backup@proxmox.local" \
+            commit -m "backup: $TIMESTAMP" -m "$SUMMARY"
+
+          logger -t "$LOG_TAG" "Committed: $SUMMARY"
+
+    - name: Install OpenClaw backup systemd service
+      copy:
+        dest: /etc/systemd/system/openclaw-backup.service
+        mode: "0644"
+        content: |
+          [Unit]
+          Description=Sync OpenClaw data to local git backup
+          After=network-online.target
+          Wants=network-online.target
+
+          [Service]
+          Type=oneshot
+          ExecStart=/usr/local/bin/openclaw-backup.sh
+          TimeoutStartSec=120
+          Nice=19
+          IOSchedulingClass=idle
+
+    - name: Install OpenClaw backup systemd timer
+      copy:
+        dest: /etc/systemd/system/openclaw-backup.timer
+        mode: "0644"
+        content: |
+          [Unit]
+          Description=Periodic OpenClaw backup sync
+
+          [Timer]
+          OnBootSec=10min
+          OnUnitActiveSec=30min
+          RandomizedDelaySec=120
+          AccuracySec=60
+          Persistent=true
+
+          [Install]
+          WantedBy=timers.target
+      register: openclaw_backup_timer
+
+    - name: Enable OpenClaw backup timer
+      systemd:
+        name: openclaw-backup.timer
+        enabled: true
+        state: started
+        daemon_reload: "{{ openclaw_backup_timer.changed }}"
+
+    - name: Run initial OpenClaw backup
+      command: /usr/local/bin/openclaw-backup.sh
+      register: initial_backup
+      changed_when: initial_backup.rc == 0
+
+    # =========================================================================
+    # SECTION 11: Firewall - restrict OpenClaw container outbound access
+    # =========================================================================
+    # OpenClaw (CT 101) is untrusted. It should only reach:
+    #   - Ollama API (192.168.5.100:11435)
+    #   - DNS (port 53, required for internet)
+    #   - The public internet
+    # All other LAN/private network access is blocked. Inbound is restricted
+    # to SSH from the Proxmox host (for rsync backups).
+    #
+    # Uses Proxmox's built-in firewall (pve-firewall), which handles the
+    # bridge/FORWARD chain complexity for LXC containers automatically.
+
+    - name: Enable Proxmox datacenter firewall with permissive defaults
+      copy:
+        dest: /etc/pve/firewall/cluster.fw
+        mode: "0640"
+        content: |
+          [OPTIONS]
+          enable: 1
+          policy_in: ACCEPT
+          policy_out: ACCEPT
+
+          [IPSET lan_rfc1918]
+          10.0.0.0/8
+          172.16.0.0/12
+          192.168.0.0/16
+
+    - name: Install OpenClaw container firewall rules
+      copy:
+        dest: /etc/pve/firewall/{{ openclaw_ctid }}.fw
+        mode: "0640"
+        content: |
+          [OPTIONS]
+          enable: 1
+          policy_in: DROP
+          policy_out: DROP
+          log_level_in: nolog
+          log_level_out: nolog
+
+          [RULES]
+          # --- Outbound ---
+          # Allow Ollama API
+          OUT ACCEPT -dest {{ ollama_ip }} -p tcp -dport 11435
+
+          # Allow DNS (required for internet hostname resolution)
+          OUT ACCEPT -p udp -dport 53
+          OUT ACCEPT -p tcp -dport 53
+
+          # Block all private/LAN networks (first-match, so above rules take priority)
+          OUT DROP -dest 10.0.0.0/8 -log nolog
+          OUT DROP -dest 172.16.0.0/12 -log nolog
+          OUT DROP -dest 192.168.0.0/16 -log nolog
+
+          # Block link-local and metadata
+          OUT DROP -dest 169.254.0.0/16 -log nolog
+
+          # Allow everything else (public internet)
+          OUT ACCEPT
+
+          # --- Inbound ---
+          # Allow SSH from Proxmox host (rsync backups) and trusted network
+          IN ACCEPT -source {{ host_ip }} -p tcp -dport 22
+          IN ACCEPT -source 192.168.0.0/24 -p tcp -dport 22
+
+          # Allow ICMP from LAN (ping for diagnostics)
+          IN ACCEPT -source 192.168.5.0/24 -p icmp
+
+    - name: Restart pve-firewall to apply rules
+      systemd:
+        name: pve-firewall
+        state: restarted
+
+    # =========================================================================
+    # SECTION 12: Validation
     # =========================================================================
     - name: Verify Ollama API with key from OpenClaw
       command: >
@@ -479,6 +863,8 @@
             ssh -i {{ ssh_pubkey_path | replace('.pub','') }} root@{{ ollama_ip }}
             ssh -i {{ ssh_pubkey_path | replace('.pub','') }} root@{{ openclaw_ip }}
 
-          PCIe NIC recovery:  enabled (auto-resets on boot)
-          Hardware watchdog:   SP5100 TCO (30s timeout)
+          OpenClaw backup:     /root/backups/openclaw (every 30min)
+          OpenClaw firewall:   outbound restricted (Ollama + DNS + internet only)
+          PCIe NIC recovery:   enabled (auto-resets on boot)
+          Hardware watchdog:    SP5100 TCO (30s timeout)
           ============================================
