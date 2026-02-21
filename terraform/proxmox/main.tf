@@ -34,6 +34,7 @@ resource "proxmox_vm_qemu" "proxmox_vm_master" {
   os_type     = "cloud-init"
   agent       = 1
   memory      = var.num_k3s_masters_mem
+  balloon     = var.num_k3s_masters_balloon
   cores       = var.num_k3s_masters_cores
   onboot      = true
   boot        = "c"
@@ -65,6 +66,7 @@ resource "proxmox_vm_qemu" "proxmox_vm_workers" {
   os_type     = "cloud-init"
   agent       = 1
   memory      = var.num_k3s_nodes_mem
+  balloon     = var.num_k3s_nodes_balloon
   cores       = var.num_k3s_nodes_cores
   onboot      = true
   bootdisk    = "virtio0"

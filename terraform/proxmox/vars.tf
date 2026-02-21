@@ -29,6 +29,10 @@ variable "num_k3s_masters_mem" {
   default = "8192"
 }
 
+variable "num_k3s_masters_balloon" {
+  default = "4096"
+}
+
 variable "num_k3s_masters_cores" {
   default = "2"
 }
@@ -38,7 +42,11 @@ variable "num_k3s_nodes" {
 }
 
 variable "num_k3s_nodes_mem" {
-  default = "8192"
+  default = "7168"
+}
+
+variable "num_k3s_nodes_balloon" {
+  default = "4096"
 }
 
 variable "num_k3s_nodes_cores" {

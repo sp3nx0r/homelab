@@ -1,16 +1,51 @@
 ---
-- name: Proxmox Configs | Filesystem | Disable swap at runtime
-  ansible.builtin.command: swapoff -a
-  when: ansible_swaptotal_mb > 0
+- name: Proxmox Configs | Filesystem | Create ZFS zvol for swap
+  ansible.builtin.command: >
+    zfs create -V 8G -b 16384
+    -o compression=zle
+    -o logbias=throughput
+    -o sync=always
+    -o primarycache=metadata
+    -o secondarycache=none
+    rpool/swap
+  register: swap_zvol_create
+  failed_when: swap_zvol_create.rc != 0 and 'dataset already exists' not in swap_zvol_create.stderr
+  changed_when: swap_zvol_create.rc == 0
 
-- name: Disable swap on boot
+- name: Proxmox Configs | Filesystem | Format zvol as swap
+  ansible.builtin.command: mkswap /dev/zvol/rpool/swap
+  when: swap_zvol_create.changed
+
+- name: Proxmox Configs | Filesystem | Enable swap on boot via fstab
   ansible.posix.mount:
-    name: "{{ item }}"
+    src: /dev/zvol/rpool/swap
+    path: none
     fstype: swap
-    state: absent
-  loop:
-    - swap
-    - none
+    opts: defaults
+    state: present
+
+- name: Proxmox Configs | Filesystem | Enable swap at runtime
+  ansible.builtin.command: swapon /dev/zvol/rpool/swap
+  register: swapon_result
+  failed_when: swapon_result.rc != 0 and 'Device or resource busy' not in swapon_result.stderr
+  changed_when: swapon_result.rc == 0
+
+- name: Proxmox Configs | Filesystem | Set ZFS ARC max to 6 GB
+  ansible.builtin.copy:
+    content: "options zfs zfs_arc_max=6442450944\n"
+    dest: /etc/modprobe.d/zfs.conf
+    owner: root
+    group: root
+    mode: "0644"
+  register: zfs_arc_config
+
+- name: Proxmox Configs | Filesystem | Apply ZFS ARC max at runtime
+  ansible.builtin.shell: "echo 6442450944 > /sys/module/zfs/parameters/zfs_arc_max"
+  when: zfs_arc_config.changed
+
+- name: Proxmox Configs | Filesystem | Rebuild initramfs for ZFS config
+  ansible.builtin.command: update-initramfs -u
+  when: zfs_arc_config.changed
 
 # Set ip forwarding on in /proc and verify token value with the sysctl command
 - name: Proxmox Configs | Filesystem | Enable IPv4 forwarding

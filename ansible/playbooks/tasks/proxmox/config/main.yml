@@ -51,3 +51,7 @@
   ansible.builtin.include_tasks: prometheus-exporters.yml
   tags:
     - prometheus-exporter
+- name: Proxmox Configs | Blacklist DVD Drive
+  ansible.builtin.include_tasks: blacklist-dvd.yml
+  tags:
+    - blacklist-dvd

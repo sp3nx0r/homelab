@@ -1,0 +1,8 @@
+---
+- name: Proxmox Configs | Blacklist DVD | Disable sr_mod to prevent I/O errors from empty DVD drive
+  ansible.builtin.copy:
+    content: "blacklist sr_mod\n"
+    dest: /etc/modprobe.d/blacklist-sr.conf
+    owner: root
+    group: root
+    mode: "0644"
