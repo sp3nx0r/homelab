@@ -46,10 +46,13 @@ spec:
                     - /bin/bash
                     - -c
                     - |
-                      sleep 15;
-                      curl -s -X PUT http://${COUCHDB_USER}:${COUCHDB_PASSWORD}@localhost:5984/_users;
-                      curl -s -X PUT http://${COUCHDB_USER}:${COUCHDB_PASSWORD}@localhost:5984/_replicator;
-                      curl -s -X PUT http://${COUCHDB_USER}:${COUCHDB_PASSWORD}@localhost:5984/_global_changes;
+                      for i in $(seq 1 30); do
+                        curl -sf http://localhost:5984/_up && break;
+                        sleep 2;
+                      done;
+                      curl -sf -X PUT -u "${COUCHDB_USER}:${COUCHDB_PASSWORD}" http://localhost:5984/_users;
+                      curl -sf -X PUT -u "${COUCHDB_USER}:${COUCHDB_PASSWORD}" http://localhost:5984/_replicator;
+                      curl -sf -X PUT -u "${COUCHDB_USER}:${COUCHDB_PASSWORD}" http://localhost:5984/_global_changes;
             probes:
               liveness: &probes
                 enabled: true
