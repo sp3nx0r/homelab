@@ -12,7 +12,7 @@ data:
     [chttpd]
     require_valid_user = true
     max_http_request_size = 4294967296
-    enable_cors = true
+    enable_cors = false
     bind_address = 0.0.0.0
 
     [chttpd_auth]
@@ -21,12 +21,5 @@ data:
 
     [httpd]
     WWW-Authenticate = Basic realm="couchdb"
-    enable_cors = true
+    enable_cors = false
     bind_address = 0.0.0.0
-
-    [cors]
-    origins = app://obsidian.md,capacitor://localhost,http://localhost,https://couchdb.${SECRET_DOMAIN}
-    credentials = true
-    headers = accept, authorization, content-type, origin, referer
-    methods = GET, PUT, POST, HEAD, DELETE
-    max_age = 3600
