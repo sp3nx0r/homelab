@@ -39,20 +39,6 @@ spec:
             envFrom:
               - secretRef:
                   name: couchdb-secret
-            lifecycle:
-              postStart:
-                exec:
-                  command:
-                    - /bin/bash
-                    - -c
-                    - |
-                      for i in $$(seq 1 30); do
-                        curl -sf http://localhost:5984/_up && break;
-                        sleep 2;
-                      done;
-                      curl -s -X PUT -u "$${COUCHDB_USER}:$${COUCHDB_PASSWORD}" http://localhost:5984/_users;
-                      curl -s -X PUT -u "$${COUCHDB_USER}:$${COUCHDB_PASSWORD}" http://localhost:5984/_replicator;
-                      curl -s -X PUT -u "$${COUCHDB_USER}:$${COUCHDB_PASSWORD}" http://localhost:5984/_global_changes;
             probes:
               liveness: &probes
                 enabled: true
@@ -110,4 +96,3 @@ spec:
         globalMounts:
           - path: /opt/couchdb/etc/local.d/obsidian-livesync.ini
             subPath: obsidian-livesync.ini
-            readOnly: true
