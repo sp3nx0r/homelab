@@ -34,6 +34,11 @@ spec:
             image:
               repository: couchdb
               tag: 3.4.2
+            command: ["/bin/bash", "-c"]
+            args:
+              - |
+                cp /tmp/couchdb-config/obsidian-livesync.ini /opt/couchdb/etc/local.d/obsidian-livesync.ini
+                exec /docker-entrypoint.sh /opt/couchdb/bin/couchdb
             env:
               TZ: UTC
             envFrom:
@@ -94,5 +99,4 @@ spec:
         type: configMap
         name: couchdb-config
         globalMounts:
-          - path: /opt/couchdb/etc/local.d/obsidian-livesync.ini
-            subPath: obsidian-livesync.ini
+          - path: /tmp/couchdb-config
