@@ -104,6 +104,7 @@ spec:
         globalMounts:
           - path: /opt/couchdb/data
       config:
+        enabled: true
         type: configMap
         name: couchdb-config
         globalMounts:
