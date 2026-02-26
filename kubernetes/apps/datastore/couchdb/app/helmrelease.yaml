@@ -87,17 +87,6 @@ spec:
           nginx.ingress.kubernetes.io/limit-rps: "10"
           nginx.ingress.kubernetes.io/limit-connections: "10"
           nginx.ingress.kubernetes.io/limit-burst-multiplier: "5"
-          nginx.ingress.kubernetes.io/enable-cors: "true"
-          nginx.ingress.kubernetes.io/cors-allow-origin: "app://obsidian.md,capacitor://localhost,http://localhost"
-          nginx.ingress.kubernetes.io/cors-allow-methods: "GET, PUT, POST, HEAD, DELETE, OPTIONS"
-          nginx.ingress.kubernetes.io/cors-allow-headers: "accept, authorization, content-type, origin, referer"
-          nginx.ingress.kubernetes.io/cors-allow-credentials: "true"
-          nginx.ingress.kubernetes.io/cors-max-age: "3600"
-          nginx.ingress.kubernetes.io/configuration-snippet: |
-            location ~* ^/_utils {
-              deny all;
-              return 403;
-            }
         hosts:
           - host: &host "{{ .Release.Name }}.${SECRET_DOMAIN}"
             paths:
