@@ -33,7 +33,7 @@ spec:
           main:
             image:
               repository: couchdb
-              tag: 3.4.2
+              tag: 3.5.1
             command: ["/bin/bash", "-c"]
             args:
               - |
