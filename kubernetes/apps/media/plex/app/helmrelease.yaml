@@ -63,22 +63,24 @@ spec:
             resources:
               requests:
                 # gpu.intel.com/i915: 1
-                cpu: 1
-                memory: 4Gi
+                cpu: 500m
+                memory: 2Gi
               limits:
                 # gpu.intel.com/i915: 1
-                # cpu: 1
                 memory: 4Gi
         pod:
+          priorityClassName: media-critical
           affinity:
             podAntiAffinity:
-              requiredDuringSchedulingIgnoredDuringExecution:
-                - labelSelector:
-                    matchExpressions:
-                      - key: app.kubernetes.io/name
-                        operator: In
-                        values: ["prometheus"]
-                  topologyKey: kubernetes.io/hostname
+              preferredDuringSchedulingIgnoredDuringExecution:
+                - weight: 80
+                  podAffinityTerm:
+                    labelSelector:
+                      matchExpressions:
+                        - key: app.kubernetes.io/name
+                          operator: In
+                          values: ["prometheus"]
+                    topologyKey: kubernetes.io/hostname
         #   nodeSelector:
         #     intel.feature.node.kubernetes.io/gpu: "true"
           securityContext:
