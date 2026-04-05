@@ -18,6 +18,14 @@ jobs:
         path: ["kubernetes"]
         resource: ["helmrelease", "kustomization"]
     steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Setup Flux CLI
+        uses: fluxcd/flux2/action@main
+
       - name: Diff Resources
         uses: allenporter/flux-local/action/diff@8.1.0
         id: diff
